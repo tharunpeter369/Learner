@@ -1,0 +1,181 @@
+# React 19, RSC & Server-Driven UI — Architect Level
+
+A first-principles syllabus for the biggest shift in React's history: the component model now **spans the network**. The central insight is that React Server Components (RSC) make the server a first-class place to render — components can run *on the server*, fetch data directly, and send a serialized UI description to the client — while Server Actions/Functions let the client *call the server* as if it were a function. This module separates the two halves of modern React (the **render-on-the-server** half: RSC, streaming, composition; and the **call-the-server** half: actions, forms, mutations) and layers on the new React 19 primitives (`use`, `useActionState`, `useOptimistic`, `useFormStatus`, ref-as-prop, document metadata, the React Compiler) — so you can architect, defend, and debug a server-driven UI at staff/architect level.
+
+**Legend:** 🎯 = high-frequency interview hotspot · ⚙️ = framework/runtime internals · 🧠 = mental-model / architecture depth
+
+**Prerequisites:** Solid React (components, hooks, Context, Suspense — ideally Module 5 of this path for Fiber/concurrent rendering) and comfort with client/server data flow and async JavaScript (Module 1). Familiarity with a meta-framework (Next.js App Router) helps but isn't required.
+
+**Outcome:** Ability to explain what a Server Component is and how it differs from a Client Component at the runtime level, draw the RSC request/serialization/hydration pipeline, compose server and client trees without leaking secrets or bloating the bundle, fetch data in async components and stream it with Suspense, build mutations with Server Actions and the new form hooks (`useActionState`/`useFormStatus`/`useOptimistic`), use the `use` hook and the other React 19 APIs correctly, reason about the React Compiler, and design — and critique — a server-driven UI architecture with its real trade-offs.
+
+---
+
+## [Module 0 — Why React Moved to the Server](?tab=learn#module-0) 🧠🎯
+- The problem RSC solves: the client bundle keeps growing, and data fetching round-trips (client → API → render) are slow and waterfall-prone 🎯
+- The three eras in one picture: client-side rendering (CSR) → server-side rendering + hydration (SSR) → **React Server Components** 🧠
+- The key reframe: *a component is just a function that returns UI — so why must it run in the browser?* 🧠
+- What "server-driven UI" means: the server owns rendering and data; the client owns interactivity
+- Why this is the highest-yield modern-React interview topic right now 🎯
+
+**Interview focus:** "What problem do Server Components solve?", "How is RSC different from traditional SSR?", "What does 'the component model spans the network' mean?"
+
+---
+
+## [Module 1 — Server Components vs Client Components](?tab=learn#module-1) 🎯⚙️
+- **Server Components**: run only on the server, never ship JS to the browser, can be `async`, can touch the database/filesystem/secrets directly 🎯
+- **Client Components**: the `"use client"` directive; the boundary where interactivity (state, effects, event handlers, browser APIs) becomes possible 🎯
+- What each *can't* do: Server Components have no `useState`/`useEffect`/event handlers; Client Components can't be `async` or read server-only resources
+- The default matters: in the App Router, components are **Server Components by default** — you opt *into* the client
+- `"use client"` is a **boundary**, not a per-file switch: everything imported into a client module joins the client bundle ⚙️
+
+**Interview focus:** "Server Component vs Client Component — what runs where?", "What does `\"use client\"` actually do?", "Why can a Server Component be `async` but a Client Component can't?"
+
+---
+
+## [Module 2 — The RSC Payload & the Serialization Boundary](?tab=learn#module-2) ⚙️🧠
+- What actually crosses the wire: not HTML and not a JS bundle, but the **RSC payload** — a serialized description of the rendered Server-Component tree 🧠
+- The boundary rule: **props passed from a Server Component to a Client Component must be serializable** (no functions, no class instances, no Dates-as-behavior) 🎯
+- How Client Components appear in the payload: as **references** (module id + props) the client resolves and hydrates ⚙️
+- Why you can render a Server Component *inside* a Client Component only by passing it as `children`/props (the "holes" model) 🧠
+- Secrets stay on the server: code and data in a Server Component never reach the browser — the security upside 🎯
+
+**Interview focus:** "What gets sent to the browser for a Server Component?", "Why must props to a Client Component be serializable?", "How does React represent a Client Component inside the server payload?"
+
+---
+
+## [Module 3 — Rendering, Streaming & Suspense](?tab=learn#module-3) ⚙️🎯
+- The pipeline: Server Components render → RSC payload streams → client reconciles → Client Components hydrate ⚙️
+- **Streaming SSR**: send HTML in chunks as it becomes ready instead of waiting for everything 🎯
+- **`<Suspense>`** as the unit of streaming: show a fallback now, stream the real content in when its data resolves 🎯
+- **Selective hydration**: React can hydrate interactive islands independently and prioritize the one the user touches (ties back to Module 5's concurrent renderer) ⚙️
+- Why streaming kills the all-or-nothing waterfall and improves TTFB/FCP
+- `loading.tsx` / Suspense boundaries as the framework-level expression of this
+
+**Interview focus:** "How does streaming SSR work with Suspense?", "What is selective hydration?", "Where do you put a Suspense boundary and why?"
+
+---
+
+## [Module 4 — Composition: Interleaving Server & Client](?tab=learn#module-4) 🧠🎯
+- The golden rule: **Server Components can render Client Components, but a Client Component can only render a Server Component passed to it as `children`/props** 🎯
+- The **"slots / holes" pattern**: pass server-rendered UI *through* a client component (e.g. a client `<Tabs>` wrapping server-rendered panels) 🧠
+- Moving `"use client"` to the leaves: keep the client bundle small by pushing the boundary as far down as possible (echoes AGENTS.md) 🎯
+- Avoiding the "everything becomes client" cascade — what pulls a tree across the boundary
+- Context with RSC: providers must live in Client Components; Server Components can't consume client Context 🧠
+
+**Interview focus:** "How do you render a Server Component inside a Client Component?", "Why push `\"use client\"` to the leaves?", "Can a Server Component use Context?"
+
+---
+
+## [Module 5 — Data Fetching in Server Components](?tab=learn#module-5) 🎯⚙️
+- **`async`/`await` components**: fetch data *in* the component, no `useEffect`, no loading-flag sprawl 🎯
+- Fetching on the server removes a round-trip: data is read where it lives (DB/service), not via a client→API hop 🧠
+- **Parallel vs sequential** data fetching; hoisting fetches to avoid server-side waterfalls 🎯
+- Request-level dedup/caching and the framework's `fetch` extensions (cache + revalidate semantics) ⚙️
+- How this relates to — and replaces much of — client server-state libraries from Module 6 for the *initial* read 🧠
+
+**Interview focus:** "How do you fetch data in a Server Component?", "How do you avoid a server-side request waterfall?", "When do you still need TanStack Query if you have RSC?"
+
+---
+
+## [Module 6 — Server Actions / Server Functions](?tab=learn#module-6) 🎯⚙️
+- **`"use server"`**: mark a function as a **Server Function** callable from the client — an RPC with the ergonomics of a function call 🎯
+- The mental model: the client gets a *reference*; calling it POSTs to the server, runs the function, returns the result ⚙️
+- Calling actions from `<form action={fn}>`, from `formAction`, or imperatively inside a transition 🎯
+- Mutations + revalidation: change data on the server, then revalidate the affected cached data so the UI updates 🧠
+- Security reality: a Server Function is a **public endpoint** — you must authn/authz and validate inputs inside it 🎯
+
+**Interview focus:** "What does `\"use server\"` do?", "How does calling a Server Action work under the hood?", "Are Server Actions a security risk — how do you secure them?"
+
+---
+
+## [Module 7 — Actions, Forms & the New Hooks](?tab=learn#module-7) 🎯⚙️
+- **Actions**: async transitions that React tracks for you — pending state, errors, and optimistic UI handled by the framework 🎯
+- **`useActionState`** (the React 19 hook, formerly `useFormState`): wraps an action, returns `[state, formAction, isPending]` 🎯
+- **`useFormStatus`** (from `react-dom`): read the parent `<form>`'s pending/data status from a child (e.g. a submit button) without prop drilling 🎯
+- **`useOptimistic`**: render an optimistic value immediately, auto-reverting when the real result arrives 🎯
+- How `<form action={serverFn}>` works **with and without JS** (progressive enhancement) 🧠
+
+**Interview focus:** "What does `useActionState` give you over manual `isLoading` state?", "How does `useFormStatus` know the form is submitting?", "How do you do an optimistic update with `useOptimistic`?"
+
+---
+
+## [Module 8 — The `use` Hook & Reading Resources](?tab=learn#module-8) ⚙️🎯
+- **`use(promise)`**: read a promise during render — React suspends until it resolves, integrating with Suspense 🎯
+- **`use(context)`**: read Context — and unlike `useContext`, `use` may be called **conditionally** (inside `if`/loops) ⚙️
+- The pattern: create/fetch a promise in a Server Component, pass it as a prop, **unwrap it in a Client Component with `use`** 🧠
+- Why `use` is not a normal hook (relaxed rules-of-hooks constraints) ⚙️
+- Pitfalls: don't create promises in render on the client without caching them (infinite refetch) 🎯
+
+**Interview focus:** "What does the `use` hook do?", "How is `use(context)` different from `useContext`?", "How do you stream a server promise into a client component?"
+
+---
+
+## [Module 9 — New React 19 Component APIs](?tab=learn#module-9) ⚙️🎯
+- **`ref` as a prop**: function components receive `ref` directly — `forwardRef` is no longer needed 🎯
+- **`ref` cleanup functions**: a ref callback may now return a cleanup function ⚙️
+- **`<Context>` as a provider**: render `<Context>` directly instead of `<Context.Provider>`
+- **Document metadata**: `<title>`, `<meta>`, `<link>` rendered anywhere are hoisted into `<head>` 🎯
+- **Stylesheet & async-script support** with ordering/precedence; **resource preloading** (`preload`, `preinit`, `preconnect`, `prefetchDNS`) ⚙️
+- Better hydration-error messages and error-handling options (`onCaughtError`/`onUncaughtError`)
+
+**Interview focus:** "What replaced `forwardRef` in React 19?", "How does React 19 handle `<title>`/`<meta>` in components?", "What can a ref callback return now?"
+
+---
+
+## [Module 10 — The React Compiler](?tab=learn#module-10) ⚙️🧠
+- What it is: a **build-time optimizing compiler** that auto-memoizes components and values, aiming to make `useMemo`/`useCallback`/`memo` largely unnecessary 🎯
+- The problem it removes: hand-tuned memoization is error-prone and noisy (ties back to Module 5's re-render model) 🧠
+- How it works at a high level: it relies on the **Rules of React** (purity, no mutation of props/state) to know what's safe to cache ⚙️
+- It's a **separate, opt-in package** (a Babel/build plugin), not bundled into React 19 itself — accuracy point 🎯
+- The `eslint-plugin-react-hooks` rule set as the compiler's safety net; what breaks the compiler's assumptions
+
+**Interview focus:** "What does the React Compiler do?", "Does it remove the need for `useMemo`/`useCallback`?", "What rules must your code follow for the compiler to optimize it?"
+
+---
+
+## [Module 11 — Caching, Revalidation & the Server-Driven Update Loop](?tab=learn#module-11) 🧠🎯
+- The full loop: render on server → cache → mutate via action → **revalidate** → re-render the affected tree → stream the new payload 🧠
+- Layers of caching to keep straight: request memoization, the data cache, and route/render caches (framework-level) ⚙️
+- **`revalidatePath` / `revalidateTag`** (and router refresh) as the invalidation primitives after a mutation 🎯
+- Static vs dynamic rendering and why a single dynamic call can opt a route out of static
+- Why "the server is the source of truth, the client mirrors it" changes how you think about state (contrast Module 6) 🧠
+
+**Interview focus:** "How does the UI update after a Server Action mutates data?", "What's the difference between revalidating a path and a tag?", "What makes a route dynamic instead of static?"
+
+---
+
+## [Module 12 — Server-Driven UI Architecture & Trade-offs](?tab=learn#module-12) 🧠🎯
+- A decision framework: what belongs in a Server Component, a Client Component, a Server Action, or client state 🎯
+- Where client server-state libraries (Module 6) **still** fit: highly interactive, polling, or client-cached data alongside RSC 🧠
+- The real costs: framework lock-in, a more complex mental/runtime model, debugging across the network boundary, infra/server cost 🎯
+- Anti-patterns: `"use client"` at the root, passing non-serializable props, unsecured Server Actions, fetching in client effects when the server could do it
+- Migration mindset: incrementally adopting RSC in an existing client-heavy app 🧠
+
+**Interview focus:** "How do you decide server vs client for a feature?", "What are the downsides of RSC?", "Where does TanStack Query fit in an RSC app?"
+
+---
+
+## High-Yield Interview Question Bank (by theme) 🎯
+
+**Mental model / architecture**
+- Why React moved rendering to the server; RSC vs traditional SSR
+- "The component model spans the network" — server render half vs call-the-server half
+- Server-driven UI: server owns render/data, client owns interactivity
+- Deciding server vs client vs action vs client-state for a feature
+- Where TanStack Query still fits in an RSC world; RSC trade-offs and lock-in
+
+**Server Components & rendering**
+- Server vs Client Components: what each can/can't do, and where each runs
+- What `"use client"` does and why it's a boundary, not a flag
+- The RSC payload and the serialization boundary (serializable props rule)
+- Rendering a Server Component inside a Client Component (children/slots pattern)
+- Streaming SSR, Suspense as the streaming unit, selective hydration
+- Data fetching in `async` components; avoiding server-side waterfalls
+
+**Actions, forms & React 19 APIs**
+- `"use server"` Server Functions: the under-the-hood RPC and how to secure them
+- Actions + `useActionState` / `useFormStatus` / `useOptimistic`
+- The `use` hook: reading promises and conditional Context
+- `ref` as a prop (no more `forwardRef`), ref cleanup, document metadata, preloading
+- The React Compiler: what it auto-memoizes and the rules it depends on
+- Revalidation after mutations (`revalidatePath`/`revalidateTag`, router refresh)

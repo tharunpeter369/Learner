@@ -1,0 +1,185 @@
+# State Management & Data Fetching — Architect Level
+
+A first-principles syllabus for the question that derails most front-end architectures: *where does state live, and who owns it?* The central insight is that **"state" is two very different things** — short-lived **client state** you own, and **server state** that's really a cache of data owned elsewhere — and that conflating them is the root of most state-management pain. This module covers the client side (local state, Context, Redux/RTK, atomic stores, state machines) and the server side (the data-fetching problem, TanStack Query, caching/invalidation, normalization, real-time sync), so you can pick the right tool and defend it in a senior/staff/architect interview.
+
+**Legend:** 🎯 = high-frequency interview hotspot · ⚙️ = library/runtime internals · 🧠 = mental-model / architecture depth
+
+**Prerequisites:** Comfortable with React (components, hooks, Context — ideally Module 5 of this path) and async JavaScript (promises, the event loop — Module 1). Some exposure to Redux or a data-fetching library helps.
+
+**Outcome:** Ability to separate client state from server state, choose between local state / Context / Redux / atomic stores / state machines with clear reasoning, explain how these libraries avoid unnecessary re-renders, articulate why server data needs caching/invalidation/sync rather than a store, use TanStack Query (queries, mutations, optimistic updates, invalidation) and normalized caches correctly, and design a coherent state architecture — at an architect's level.
+
+---
+
+## [Module 0 — Client State vs Server State](?tab=learn#module-0) 🧠🎯
+- The single most important distinction: **client state** (UI, owned by you, synchronous) vs **server state** (a *cache* of remote data, owned elsewhere, async, shared, can go stale) 🎯
+- Why putting server data in Redux feels wrong: you're hand-rolling a cache
+- A third category: **URL state** and **form state**
+- The decision lens every later module hangs off of 🧠
+
+**Interview focus:** "What's the difference between client state and server state?", "Why is fetching data into Redux often an anti-pattern?", "Where should a given piece of state live?"
+
+---
+
+## [Module 1 — Local State & Lifting](?tab=learn#module-1) 🎯
+- `useState` vs `useReducer` — when a reducer's explicit transitions win 🎯
+- **Colocation**: keep state as close to where it's used as possible
+- **Lifting state up** to the nearest common ancestor; the cost
+- **Prop drilling**: the problem that motivates Context and stores 🎯
+- Derived state vs stored state — don't store what you can compute
+
+**Interview focus:** "`useState` vs `useReducer`?", "What is prop drilling and how do you avoid it?", "Should you store derived values in state?"
+
+---
+
+## [Module 2 — Context as State (and Its Limits)](?tab=learn#module-2) 🎯⚙️
+- Context is **dependency injection**, not a state manager 🧠
+- The **re-render problem**: every consumer re-renders when the value changes (identity) 🎯
+- Mitigations: memoize the value, **split contexts**, selector libraries (`use-context-selector`)
+- When Context is the right tool (low-frequency, app-wide config: theme, auth, locale)
+- Why Context doesn't scale to high-frequency state
+
+**Interview focus:** "Why does Context cause extra re-renders, and how do you fix it?", "When is Context the wrong choice?", "Context vs a state library?"
+
+---
+
+## [Module 3 — Flux & Redux Fundamentals](?tab=learn#module-3) 🎯🧠
+- **Unidirectional data flow** (Flux): action → reducer → store → view → action 🎯
+- The three principles: single source of truth, state is read-only, changes via pure reducers
+- **Actions, reducers, the store**; `dispatch` and subscription
+- Why Redux exists: predictable state, time-travel, middleware, devtools
+- When you **don't** need Redux (and why it's less default now) 🎯
+
+**Interview focus:** "Explain unidirectional data flow.", "What are actions, reducers, and the store?", "When would you reach for Redux today?"
+
+---
+
+## [Module 4 — Redux Toolkit in Depth](?tab=learn#module-4) ⚙️🎯
+- **Redux Toolkit (RTK)** as the standard: `configureStore`, `createSlice` (reducers + actions together) 🎯
+- **Immer** under the hood: "mutating" draft state safely
+- **Middleware** and async: `createAsyncThunk`, the thunk middleware
+- **Selectors** and memoization with `reselect` (`createSelector`) — avoiding recompute/re-render 🎯
+- The store subscription model and how `useSelector` re-renders
+
+**Interview focus:** "How does `createSlice` reduce boilerplate?", "How does RTK let you 'mutate' state?", "What does `createSelector` solve?"
+
+---
+
+## [Module 5 — Lightweight & Atomic State (Zustand, Jotai, Valtio)](?tab=learn#module-5) ⚙️🎯
+- The modern lightweight stores and why they took off (less boilerplate, no provider hell)
+- **Zustand**: a tiny store hook built on `useSyncExternalStore`; selecting slices to avoid re-renders 🎯
+- **Jotai**: bottom-up **atoms** (composable units of state) — and why atoms avoid the context re-render trap
+- **Valtio**: proxy-based mutable state; subscribe to what you read
+- How all three integrate with concurrent React via `useSyncExternalStore` ⚙️
+
+**Interview focus:** "Why do Zustand/Jotai avoid Context's re-render problem?", "Store-based vs atomic state — what's the difference?", "What does `useSyncExternalStore` do for these libraries?"
+
+---
+
+## [Module 6 — State Machines (XState)](?tab=learn#module-6) 🧠
+- Modeling state as an explicit **finite state machine**: states, events, transitions 🧠
+- Why ad-hoc booleans (`isLoading`, `isError`, `isOpen`) create impossible states
+- **Statecharts**: hierarchical/parallel states, guards, actions, context
+- When a machine pays for itself (complex flows: wizards, checkout, media players)
+- The cost: added concepts vs the safety of "impossible states are unrepresentable"
+
+**Interview focus:** "When would you reach for a state machine?", "How do state machines prevent impossible states?", "Booleans vs an explicit state enum?"
+
+---
+
+## [Module 7 — The Server State Problem](?tab=learn#module-7) 🎯🧠
+- Why server data is **fundamentally different**: asynchronous, shared across components, can be stale, must be cached and kept in sync 🎯
+- The pains of doing it by hand in `useState` + `useEffect`: loading/error flags everywhere, no caching, no dedup, no background refresh
+- Server state is a **cache**, not a source of truth — the reframing that fixes everything 🧠
+- Why a dedicated server-state library beats Redux for this
+
+**Interview focus:** "Why is server state different from client state?", "What problems does a data-fetching library solve that `useEffect` doesn't?", "Is your fetched data a source of truth?"
+
+---
+
+## [Module 8 — Data Fetching Patterns & Pitfalls](?tab=learn#module-8) 🎯
+- The naive **fetch-in-`useEffect`** pattern and everything it gets wrong
+- **Race conditions**: out-of-order responses; the cleanup/`AbortController` fix 🎯
+- Loading, error, and empty states; the `isLoading`-flag sprawl
+- **Request waterfalls** vs parallel fetching; over-fetching/under-fetching
+- Where data fetching should live (component vs route loader vs server)
+
+**Interview focus:** "Show the race condition in a fetch-on-effect and fix it.", "How do you avoid request waterfalls?", "Where should you fetch data?"
+
+---
+
+## [Module 9 — TanStack Query: Queries](?tab=learn#module-9) ⚙️🎯
+- `useQuery`: **query keys**, the query function, and the **query cache** 🎯
+- **`staleTime` vs `gcTime`** (garbage-collection time, formerly `cacheTime`) — fresh vs cached vs collected 🎯
+- **Background refetching** (on mount, focus, reconnect) and stale-while-revalidate
+- **Deduplication** of identical in-flight queries; structural sharing
+- `isPending` / `isFetching` / `isError`; `enabled`, `select`, and dependent queries
+
+**Interview focus:** "`staleTime` vs `gcTime`?", "How does React Query dedupe and cache?", "What is stale-while-revalidate in this context?"
+
+---
+
+## [Module 10 — TanStack Query: Mutations & Cache Updates](?tab=learn#module-10) 🎯
+- `useMutation`: writes, `onSuccess`/`onError`/`onSettled`
+- **Invalidation**: `queryClient.invalidateQueries` to mark data stale and refetch 🎯
+- **Optimistic updates**: update the cache immediately, roll back on error 🎯
+- Directly writing the cache (`setQueryData`) vs invalidate-and-refetch
+- Keeping multiple views in sync through one cache
+
+**Interview focus:** "How do you do an optimistic update with rollback?", "Invalidate vs `setQueryData` — when each?", "How do mutations keep related queries fresh?"
+
+---
+
+## [Module 11 — Normalized Caching & RTK Query](?tab=learn#module-11) ⚙️🧠
+- Document cache (TanStack Query) vs **normalized cache** — the relational-data problem 🧠
+- **Normalization**: storing entities by id to avoid duplication and keep references consistent
+- **RTK Query**: endpoints, auto-generated hooks, **tag-based invalidation**, cache lifecycle
+- The normalization debate: when it's worth the complexity (vs document caching)
+- Apollo/GraphQL normalized caches (concept) and cache identity
+
+**Interview focus:** "Document cache vs normalized cache?", "How does RTK Query's tag invalidation work?", "When is normalization worth it?"
+
+---
+
+## [Module 12 — Real-time & Synchronization](?tab=learn#module-12) 🎯
+- Keeping data live: **polling** vs **SSE** vs **WebSockets** — trade-offs 🎯
+- Pushing server changes into the query cache (subscriptions feeding the cache)
+- **Optimistic UI** and reconciling with the server's truth; rollback
+- **Offline / persistence**: cache persistence, mutation queues, retry
+- Conflict resolution at a glance (last-write-wins vs CRDTs — conceptual) 🧠
+
+**Interview focus:** "Polling vs SSE vs WebSockets — when each?", "How do you push real-time updates into a query cache?", "How do you handle offline mutations?"
+
+---
+
+## [Module 13 — State Architecture: Choosing & Composing](?tab=learn#module-13) 🧠🎯
+- A **decision framework**: local → lifted → Context → store → server-state library 🎯
+- **URL as state** (filters, pagination, tabs) — when the URL is the right store
+- **Form state** (controlled vs uncontrolled, React Hook Form) — why it's its own category
+- Composing client + server state without overlap or duplication
+- Common anti-patterns: global-by-default, server data in Redux, mega-context
+
+**Interview focus:** "Walk me through choosing where state lives for a feature.", "When should state go in the URL?", "How do you combine client and server state cleanly?"
+
+---
+
+## High-Yield Interview Question Bank (by theme) 🎯
+
+**Mental model / architecture**
+- Client state vs server state vs URL state vs form state — and where each lives
+- Why server data is a cache, not a source of truth
+- A decision framework: local → lifted → Context → store → query library
+- Anti-patterns: global-by-default, server data in Redux, one mega-context
+
+**Client state**
+- `useState` vs `useReducer`; prop drilling; derived vs stored state
+- Why Context re-renders all consumers, and the fixes (split / memoize / selector)
+- Redux unidirectional flow; `createSlice`/`configureStore`; `createSelector`
+- Why Zustand/Jotai avoid the Context re-render trap (`useSyncExternalStore`)
+- When a state machine prevents impossible states
+
+**Server state**
+- The fetch-in-`useEffect` race condition and the `AbortController`/cleanup fix
+- `staleTime` vs `gcTime`; dedup; background refetch; stale-while-revalidate
+- Optimistic update with rollback; invalidate vs `setQueryData`
+- Document vs normalized cache; RTK Query tag invalidation
+- Polling vs SSE vs WebSockets; pushing real-time updates into the cache

@@ -1,0 +1,207 @@
+# Browser & Rendering Internals — Architect Level
+
+A pixels-up syllabus for engineers who must reason about *what the browser actually does* between a URL and a painted, interactive page — and who need to diagnose jank, layout thrash, and slow loads from first principles, then defend those fixes in senior/staff/architect interviews. The browser is treated here as what it really is: a **multi-process system with a rendering pipeline**, not a magic box that "shows HTML".
+
+**Legend:** 🎯 = high-frequency interview hotspot · ⚙️ = browser/engine internals · 🧠 = mental-model / deep-theory depth
+
+**Prerequisites:** Comfortable with HTML/CSS/JS, the DOM API, and the event loop (ideally Module 1 of this path). Some exposure to Chrome DevTools.
+
+**Outcome:** Ability to trace a page from URL to pixels through the rendering pipeline, explain how parsing, style, layout, paint, and compositing work and what triggers each, reason about the 60fps frame budget and the event loop's rendering integration, choose compositor-friendly animations, eliminate layout thrash, optimize resource loading, and measure it all with Core Web Vitals — articulating the trade-offs at an architect's level.
+
+---
+
+## [Module 0 — Browser Architecture: Processes & Threads](?tab=learn#module-0) ⚙️🧠
+- The **multi-process** model: browser process, **renderer** process (one per site, roughly), GPU process, network/utility processes
+- **Site isolation** and why a tab crash doesn't take down the browser
+- Inside a renderer: the **main thread** (JS + DOM + style + layout + paint setup), the **compositor thread**, **raster** threads, worker threads
+- **Blink** (rendering engine) vs **V8** (JS engine) — two parts of one renderer
+- Why "don't block the main thread" is the whole game 🎯
+
+**Interview focus:** "What runs on the main thread vs other threads?", "Why is the browser multi-process?", "What is site isolation?"
+
+---
+
+## [Module 1 — From URL to Pixels: The Rendering Pipeline](?tab=learn#module-1) 🎯🧠
+- The big picture: navigation → response → **parse → style → layout → paint → composite**
+- The **Critical Rendering Path**: the minimum work to first pixels
+- Render-blocking vs parser-blocking resources (preview; detailed later)
+- Where each stage runs and what it produces (DOM, CSSOM, render tree, layer tree, frames)
+
+**Interview focus:** "Walk me through what happens from typing a URL to seeing the page.", "What is the critical rendering path?"
+
+---
+
+## [Module 2 — Parsing HTML & Building the DOM](?tab=learn#module-2) ⚙️
+- Bytes → characters → **tokens** → nodes → the **DOM tree**
+- The parser is **incremental**; streaming HTML
+- **Parser-blocking scripts**: why a synchronous `<script>` stops DOM construction 🎯
+- The **preload scanner** (speculative parsing) that fetches resources ahead
+- `document.write` and why it's pathological
+- **`DOMContentLoaded`** vs **`load`** — what each waits for 🎯
+
+**Interview focus:** "Why does a `<script>` in the `<head>` block rendering?", "DOMContentLoaded vs load?", "What does the preload scanner do?"
+
+---
+
+## [Module 3 — CSS, the CSSOM & the Cascade](?tab=learn#module-3) ⚙️
+- Parsing CSS into the **CSSOM**; CSS is **render-blocking** 🎯
+- The **cascade**: origin, specificity, source order; how a winner is chosen 🎯
+- **Inheritance**, computed vs used values
+- Selector matching cost (right-to-left matching) 🧠
+- Why `@import` and unscoped CSS hurt the critical path
+
+**Interview focus:** "Why is CSS render-blocking?", "How does the cascade resolve a conflict?", "How are selectors matched?"
+
+---
+
+## [Module 4 — The Render Tree & Layout (Reflow)](?tab=learn#module-4) ⚙️🎯
+- Combining DOM + CSSOM into the **render tree** (only visible, styled nodes)
+- `display: none` vs `visibility: hidden` in the render tree
+- **Layout / reflow**: computing geometry (position + size) of every box
+- The box model at layout time; containing blocks; in-flow vs out-of-flow
+- **Forced synchronous layout** ("layout thrashing"): reading a layout property after a write 🎯
+- What properties force layout (`offsetTop`, `getBoundingClientRect`, `scrollHeight`, …)
+
+**Interview focus:** "What is reflow and what triggers it?", "What is forced synchronous layout / layout thrashing?", "Difference between `display:none` and `visibility:hidden`?"
+
+---
+
+## [Module 5 — Paint, Layers & the Compositor](?tab=learn#module-5) ⚙️🧠
+- **Paint**: turning the render tree into paint records (draw commands), not pixels yet
+- **Rasterization**: paint records → actual pixels (often on raster threads / GPU)
+- **Layers** (compositing layers) and **layer promotion** (`transform`, `opacity`, `will-change`, `position: fixed`, video, canvas)
+- The **compositor thread**: assembling layers into the final frame, off the main thread 🎯
+- **Compositor-only properties** (`transform`, `opacity`) — animate these for free 🎯
+- The cost of too many layers (memory, "layer explosion")
+
+**Interview focus:** "What is the compositor thread and why does it matter?", "Why are `transform`/`opacity` animations cheap?", "What promotes an element to its own layer?"
+
+---
+
+## [Module 6 — The Frame & the 60fps Budget](?tab=learn#module-6) 🎯🧠
+- One frame = **~16.6ms** at 60fps (and ~6.9ms at 144Hz)
+- The **pixel pipeline** per frame: JS → Style → Layout → Paint → Composite
+- Where a change **enters** the pipeline decides its cost (composite-only is cheapest) 🎯
+- **Dropped frames** and jank; the "long frame"
+- **`requestAnimationFrame`**: running JS right before the next paint
+
+**Interview focus:** "What's the frame budget and why 16.6ms?", "Why animate with `transform` instead of `top`?", "What is `requestAnimationFrame` for?"
+
+---
+
+## [Module 7 — The Event Loop & Rendering](?tab=learn#module-7) ⚙️🎯
+- How the **event loop** schedules a **rendering opportunity** between tasks
+- Ordering within a frame: tasks → microtasks → `requestAnimationFrame` → style/layout → paint
+- Why a flood of **microtasks** can starve rendering 🎯
+- **`requestIdleCallback`**: doing low-priority work in idle time
+- Blocking the main thread = no rendering, no input
+
+**Interview focus:** "Where does rendering fit in the event loop?", "rAF vs setTimeout vs microtask for visual updates?", "How can microtasks block paint?"
+
+---
+
+## [Module 8 — Reflow vs Repaint vs Composite: Performance](?tab=learn#module-8) 🎯
+- Which CSS changes trigger **layout**, which only **paint**, which only **composite** 🎯
+- Animating `transform`/`opacity` (composite) vs `top`/`left`/`width` (layout) vs `color`/`background` (paint)
+- **Batching reads and writes** to avoid forced synchronous layout (the read-then-write trap) 🎯
+- The **FastDOM / read-write-batch** pattern; `requestAnimationFrame` for writes
+- `will-change` and `contain` — hints and isolation (and their costs)
+
+**Interview focus:** "Which is cheaper: animating `left` or `transform`?", "How do you fix layout thrashing?", "What does `content-visibility` / `contain` do?"
+
+---
+
+## [Module 9 — Input, Scrolling & Responsiveness (INP)](?tab=learn#module-9) 🎯
+- The input pipeline; **hit testing**; main-thread vs compositor-handled input
+- **Passive event listeners** and why they speed up scrolling 🎯
+- Scroll-linked effects, sticky/parallax costs, scroll jank
+- **INP (Interaction to Next Paint)** — the responsiveness Core Web Vital 🎯
+- Breaking up **long tasks**; yielding to the main thread (`scheduler.yield`, chunking)
+- Debounce/throttle for high-frequency input (tie back to Module 1 utilities)
+
+**Interview focus:** "What is INP and how do you improve it?", "Why mark a scroll/touch listener `passive`?", "How do you keep a long task from freezing input?"
+
+---
+
+## [Module 10 — Resource Loading & the Preload Scanner](?tab=learn#module-10) ⚙️🎯
+- **Render-blocking** vs **parser-blocking**; the role of `<head>`
+- **`async`** vs **`defer`** scripts — exact loading/execution semantics 🎯
+- **Resource hints**: `preload`, `prefetch`, `preconnect`, `dns-prefetch`, `modulepreload`
+- Priority and the browser's **fetch priority**; `fetchpriority`
+- **Lazy loading** images/iframes (`loading="lazy"`); responsive images
+- Critical CSS, font loading (`font-display`), and avoiding FOIT/FOUT
+
+**Interview focus:** "`async` vs `defer`?", "When do you use `preload` vs `prefetch`?", "How do you stop a web font from blocking text?"
+
+---
+
+## [Module 11 — Observers: Intersection, Resize, Mutation, Performance](?tab=learn#module-11) 🎯
+- Why observers beat polling and scroll handlers (off the main thread, batched) 🧠
+- **`IntersectionObserver`**: lazy loading, infinite scroll, visibility analytics 🎯
+- **`ResizeObserver`**: element-level resize without `window.resize` thrash
+- **`MutationObserver`**: reacting to DOM changes asynchronously
+- **`PerformanceObserver`**: measuring paint, LCP, layout shifts, long tasks
+
+**Interview focus:** "Implement infinite scroll without a scroll handler.", "Why use `IntersectionObserver` over `getBoundingClientRect` in a scroll listener?", "What does `ResizeObserver` solve?"
+
+---
+
+## [Module 12 — Storage, Caching & Service Workers](?tab=learn#module-12) ⚙️
+- Client storage: **cookies**, `localStorage`/`sessionStorage` (sync, blocking), **IndexedDB** (async)
+- The **HTTP cache**: cache-control, ETags, freshness vs validation 🎯
+- **Service Workers**: the programmable network proxy; lifecycle (install/activate/fetch)
+- The **Cache API** and caching strategies (cache-first, network-first, stale-while-revalidate) 🎯
+- Offline-first; the cost and footguns of Service Workers
+
+**Interview focus:** "How does the HTTP cache decide to reuse a response?", "What is a Service Worker and what can it intercept?", "localStorage vs IndexedDB?"
+
+---
+
+## [Module 13 — Web Workers & Off-Main-Thread Work](?tab=learn#module-13) 🎯
+- The main-thread bottleneck; moving CPU work to **Web Workers**
+- `postMessage` and **structured clone**; transferable objects; `SharedArrayBuffer`/`Atomics` 🧠
+- What workers **can't** do (no DOM) and how they communicate results
+- **OffscreenCanvas** for rendering off the main thread
+- When a worker helps vs when the messaging cost dominates
+
+**Interview focus:** "What can and can't a Web Worker do?", "How do you move expensive work off the main thread?", "Structured clone vs transferable objects?"
+
+---
+
+## [Module 14 — Measuring Rendering & Core Web Vitals](?tab=learn#module-14) 🎯⚙️
+- The DevTools **Performance** panel: flame chart, the **main thread**, frames, layers/paint flashing
+- **Core Web Vitals**: **LCP** (loading), **CLS** (visual stability), **INP** (responsiveness) — current definitions 🎯
+- Field vs lab data (RUM vs Lighthouse); the Long Tasks API; `PerformanceObserver`
+- Diagnosing jank, layout shifts, and long tasks from a trace
+- A measure-first methodology for rendering performance
+
+**Interview focus:** "Name the Core Web Vitals and what each measures.", "How do you debug a janky animation in DevTools?", "What causes CLS and how do you fix it?"
+
+---
+
+## High-Yield Interview Question Bank (by theme) 🎯
+
+**Mental model / explain it**
+- URL → pixels: the full navigation + rendering pipeline
+- The pixel pipeline (JS → Style → Layout → Paint → Composite) and where a change enters
+- Main thread vs compositor thread vs raster vs GPU
+- Why CSS is render-blocking and JS can be parser-blocking
+- Where rendering fits in the event loop (rAF, microtasks, idle)
+
+**Performance / fix it**
+- Reflow vs repaint vs composite — classify a list of CSS changes
+- Forced synchronous layout / layout thrashing — spot it and fix it (read/write batching)
+- Make an animation compositor-only (`transform`/`opacity`, `will-change`)
+- Break up a long task to improve INP; yield to the main thread
+- `async` vs `defer`; `preload`/`prefetch`/`preconnect`; critical CSS; font-display
+
+**Build it / APIs**
+- Infinite scroll / lazy load with `IntersectionObserver`
+- Off-main-thread work with a Web Worker (and what can't cross the boundary)
+- A Service-Worker caching strategy (cache-first / stale-while-revalidate)
+- `requestAnimationFrame`-driven animation vs `setTimeout`
+
+**Measure it**
+- Core Web Vitals: LCP, CLS, INP — definitions, causes, fixes
+- Read a DevTools Performance trace; find the long frame / long task
+- Field vs lab data; the Long Tasks API and `PerformanceObserver`

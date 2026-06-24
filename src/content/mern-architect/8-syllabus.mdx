@@ -1,0 +1,169 @@
+# CSS & Styling Architecture — Architect Level
+
+A first-principles syllabus for the part of frontend most engineers *use* daily but few can *defend* in an architecture round. The central insight: CSS is a **global, declarative, cascading** system, and every styling decision — a class name, a methodology, a build tool — is really a strategy for taming that global namespace at scale. This module builds from the engine that resolves styles (cascade, specificity, the box model, layout) up to the architectural layer an architect actually owns: how a large team writes styles that stay scoped, themeable, performant, and consistent across thousands of components. The goal is to **choose and justify a styling strategy**, not merely write rules that happen to work.
+
+**Legend:** 🎯 = high-frequency interview hotspot · ⚙️ = engine/build-tool internals · 🧠 = mental-model / architecture depth
+
+**Prerequisites:** Comfort writing everyday CSS (selectors, colors, basic layout) and basic React/JSX (Modules 5–7 help, since component-scoped styling is the modern default). No prior CSS-architecture theory assumed — we build it from the cascade up.
+
+**Outcome:** Ability to explain how the browser resolves a style from cascade + specificity + inheritance, reason about the box model / stacking contexts / layout algorithms (Flexbox & Grid), build responsive layouts with modern CSS (container queries, `clamp()`, logical properties, `:has()`), articulate the *scaling problem* of global CSS and how each solution (BEM, CSS Modules, CSS-in-JS, utility-first/Tailwind) addresses it, design a token-driven design system with light/dark theming, optimize CSS for performance (critical CSS, containment, compositor-only animations), and — the architect's job — **select, defend, and migrate** a styling strategy for a large codebase with its real trade-offs.
+
+---
+
+## [Module 0 — Why Styling Is an Architecture Problem](?tab=learn#module-0) 🧠🎯
+- CSS is **global by default**: every selector competes in one namespace, so a rule written in one file can silently restyle another 🎯
+- Why CSS "doesn't scale" naively: append-only stylesheets, specificity wars, dead styles nobody dares delete 🧠
+- The architect reframe: styling at scale is a **naming + scoping + consistency** problem, not a "which color" problem 🧠
+- The three forces every strategy trades off: **scoping** (no leaks), **reuse** (no duplication), **performance** (small, fast CSS) 🎯
+- Why this is interview-relevant: seniors are expected to *own the styling strategy*, not just produce pixels
+
+**Interview focus:** "Why is CSS hard to scale on a large team?", "What does it mean that CSS is global?", "What problem does a CSS methodology actually solve?"
+
+---
+
+## [Module 1 — The Cascade, Specificity & Inheritance](?tab=learn#module-1) 🎯⚙️
+- The **cascade**: how the browser picks a winner when multiple rules target one element (origin → specificity → source order) ⚙️
+- **Specificity** as a 3-part score (id, class/attr/pseudo-class, element) — how to count it and why `!important` is a code smell 🎯
+- **Inheritance**: which properties inherit (text-ish) vs not (box-ish), and `inherit` / `initial` / `unset` / `revert` 🧠
+- The cascade layers (`@layer`) feature: explicitly ordering style buckets to end specificity wars ⚙️
+- Why understanding the cascade is the root of every "why won't this style apply?" debug 🎯
+
+**Interview focus:** "How does the browser decide which CSS rule wins?", "How is specificity calculated?", "Why is `!important` discouraged, and what does `@layer` offer instead?"
+
+---
+
+## [Module 2 — The Box Model, Positioning & Stacking Contexts](?tab=learn#module-2) ⚙️🎯
+- The **box model**: content, padding, border, margin — and why `box-sizing: border-box` is the sane default 🎯
+- **Margin collapsing**: the surprising rule where adjacent vertical margins merge 🧠
+- **Positioning**: `static` / `relative` / `absolute` / `fixed` / `sticky` and what each is anchored to 🎯
+- **Stacking contexts & `z-index`**: why a higher `z-index` sometimes *still* loses — the stacking-context trap ⚙️🎯
+- **Containing blocks**: what `absolute`/`fixed` actually position against, and how `transform`/`filter` create new ones ⚙️
+
+**Interview focus:** "What is the box model and what does `border-box` change?", "Why doesn't my `z-index: 9999` work?", "What is a stacking context and what creates one?"
+
+---
+
+## [Module 3 — Modern Layout: Flexbox & Grid](?tab=learn#module-3) 🎯⚙️
+- **Flexbox**: one-dimensional layout — main vs cross axis, `justify-content` vs `align-items`, `flex-grow/shrink/basis` 🎯
+- The `flex` shorthand and the common `flex: 1` / `min-width: 0` overflow gotcha 🧠
+- **CSS Grid**: two-dimensional layout — tracks, `fr` units, `grid-template-areas`, `minmax()`, `auto-fit`/`auto-fill` 🎯
+- When to reach for Flexbox vs Grid (content-driven vs layout-driven) 🧠
+- Alignment that works in both (the `gap` property; intrinsic sizing) ⚙️
+
+**Interview focus:** "Flexbox vs Grid — when do you use each?", "What does `flex: 1` expand to?", "How do you build a responsive card grid with no media queries?"
+
+---
+
+## [Module 4 — Responsive & Modern CSS](?tab=learn#module-4) 🎯🧠
+- **Media queries** and the mobile-first methodology (`min-width` over `max-width`) 🎯
+- **Container queries** (`@container`): style a component by *its own* available width, not the viewport — the component-era upgrade 🎯🧠
+- **Fluid sizing**: `clamp()`, `min()`, `max()`, and viewport units (`vw`/`dvh`) for type and spacing 🎯
+- **Logical properties** (`margin-inline`, `padding-block`) for writing-mode / RTL-safe layout ⚙️
+- **`:has()`** (the "parent selector") and other modern selectors that remove old JS hacks 🧠
+
+**Interview focus:** "Mobile-first vs desktop-first — why mobile-first?", "What problem do container queries solve that media queries can't?", "How does `clamp()` create fluid typography?"
+
+---
+
+## [Module 5 — The Scaling Problem & Methodologies](?tab=learn#module-5) 🧠🎯
+- The core failure modes at scale: **global leakage, specificity wars, dead code, naming chaos** 🎯
+- **BEM** (Block–Element–Modifier): a naming convention that fakes scoping with flat, low-specificity class names 🎯
+- **OOCSS / SMACSS / ITCSS**: the ideas behind them (separate structure from skin; categorize rules; order by specificity) 🧠
+- Why these are *conventions* (discipline-enforced) vs *tooling* (machine-enforced) — and why teams eventually want the latter 🧠
+- The through-line that motivates every later module: how do we get **real** scoping instead of a naming agreement? 🎯
+
+**Interview focus:** "What is BEM and what problem does it solve?", "Why do naming conventions break down on big teams?", "Convention vs tooling for CSS scoping — trade-offs?"
+
+---
+
+## [Module 6 — CSS Modules & Scoped Styles](?tab=learn#module-6) ⚙️🎯
+- **CSS Modules**: author normal CSS; the build tool **hashes class names** so they're locally scoped by default ⚙️🎯
+- How `styles.button` becomes `button_a3f9` at build time — scoping with zero runtime cost 🧠
+- `:global`, `composes`, and sharing/overriding across modules ⚙️
+- Where CSS Modules sit: real scoping, plain-CSS authoring, but no dynamic (prop-driven) styles at runtime 🧠
+- The native frontier: the Shadow DOM / web-component encapsulation model as the browser's own scoping 🧠
+
+**Interview focus:** "How do CSS Modules achieve scoping?", "Is there a runtime cost to CSS Modules?", "CSS Modules vs CSS-in-JS — when each?"
+
+---
+
+## [Module 7 — CSS-in-JS: Runtime vs Zero-Runtime](?tab=learn#module-7) ⚙️🧠
+- The pitch: **colocate styles with components**, scope automatically, and style from props/state in JS 🎯
+- **Runtime CSS-in-JS** (styled-components / Emotion): styles generated in the browser — ergonomics vs a runtime + serialization cost 🎯⚙️
+- Why runtime CSS-in-JS struggles with **RSC / Server Components** (needs runtime + context) — a Module 7 tie-in 🧠
+- **Zero-runtime CSS-in-JS** (Linaria, vanilla-extract, Panda, PandaCSS): extract styles to a static `.css` file at **build time** ⚙️🎯
+- The trade-off map: developer ergonomics ↔ bundle/runtime cost ↔ server-rendering compatibility 🧠
+
+**Interview focus:** "What are the costs of runtime CSS-in-JS?", "Why does runtime CSS-in-JS clash with Server Components?", "What does 'zero-runtime' CSS-in-JS mean?"
+
+---
+
+## [Module 8 — Utility-First & Tailwind CSS](?tab=learn#module-8) 🎯🧠
+- The **utility-first** idea: tiny single-purpose classes (`flex`, `pt-4`, `text-sm`) composed in markup instead of bespoke CSS 🎯
+- Why it scales: styles become a **closed design-token vocabulary**; you stop writing new CSS, so the stylesheet stops growing 🧠🎯
+- How Tailwind works: a build step **scans your files** and generates only the utilities you used (tree-shaken CSS) ⚙️
+- Tailwind v4 specifics: CSS-first config (`@theme`), the Oxide engine, `dark:` variant & class-based theming (this codebase's stack) ⚙️🎯
+- The honest critique: "ugly markup", learning curve, and how `@apply` / component extraction answer it 🧠
+
+**Interview focus:** "Why does utility-first CSS scale better than hand-written CSS?", "How does Tailwind keep the CSS file small?", "What are the downsides of utility-first, and how do you mitigate them?"
+
+---
+
+## [Module 9 — Design Systems, Tokens & Theming](?tab=learn#module-9) 🧠🎯
+- **Design tokens**: naming the design decisions (color, space, radius, type) as variables — the single source of truth 🎯🧠
+- **CSS custom properties** (`--brand`): runtime variables that cascade and inherit — the engine behind modern theming ⚙️🎯
+- **Theming patterns**: light/dark via a class/`data-theme` on the root + token overrides (how `next-themes` does it) 🎯
+- Semantic vs primitive tokens (`--color-bg` → `--neutral-900`) and why the indirection layer matters 🧠
+- Avoiding the FOUC/flash on theme load; `prefers-color-scheme` and respecting user preference 🎯
+
+**Interview focus:** "What is a design token and why use one?", "How do you implement dark mode without a flash?", "CSS variables vs Sass variables — what's the runtime difference?"
+
+---
+
+## [Module 10 — CSS Performance & the Rendering Path](?tab=learn#module-10) ⚙️🎯
+- How CSS blocks rendering: the **CSSOM** must be built before first paint — CSS is render-blocking ⚙️🎯
+- **Critical CSS**: inline the above-the-fold styles, defer the rest, to cut First Contentful Paint 🎯
+- **Selector cost & specificity** at scale; why huge unused stylesheets hurt (ties to Module 4 perf, CWV) 🧠
+- **Compositor-only animations**: animate `transform`/`opacity` (GPU) not `width`/`top` (layout/paint) — the 60fps rule 🎯⚙️
+- **`content-visibility`** and CSS `contain` to skip off-screen layout/paint work ⚙️
+
+**Interview focus:** "Why is CSS render-blocking and what is critical CSS?", "Which CSS properties are cheap to animate and why?", "How does `content-visibility` improve performance?"
+
+---
+
+## [Module 11 — Choosing & Defending a Styling Architecture](?tab=learn#module-11) 🧠🎯
+- A **decision framework**: team size, design-system maturity, SSR/RSC constraints, performance budget, dynamic-styling needs 🎯🧠
+- Mapping options to contexts: Tailwind for product velocity, CSS Modules for plain-CSS scoping, zero-runtime CSS-in-JS for typed colocation 🧠
+- **Anti-patterns**: `!important` ladders, deep descendant selectors, inline-style sprawl, runtime CSS-in-JS in an RSC app 🎯
+- **Migration strategy**: incrementally moving a legacy global-CSS codebase to scoped/tokenized styles without a big-bang rewrite 🧠
+- Governance: linting (Stylelint), token enforcement, and how an architect keeps consistency across many teams 🎯
+
+**Interview focus:** "How would you choose a styling approach for a new large app?", "How do you migrate a legacy CSS codebase safely?", "What styling anti-patterns do you watch for in review?"
+
+---
+
+## High-Yield Interview Question Bank (by theme) 🎯
+
+**Mental model / explain it**
+- Why CSS is global and why that makes it hard to scale
+- How the cascade + specificity + inheritance resolve a final style
+- Stacking contexts: why `z-index` "doesn't work" sometimes
+- The box model and what `border-box` changes; margin collapsing
+- What a design token is and why indirection (semantic → primitive) matters
+
+**Layout & modern CSS**
+- Flexbox vs Grid, and `flex: 1` / `min-width: 0` gotchas
+- Container queries vs media queries; mobile-first reasoning
+- `clamp()` fluid typography; logical properties; `:has()`
+
+**Architecture / strategy**
+- The scaling problem and what BEM / CSS Modules / CSS-in-JS / Tailwind each solve
+- Convention vs tooling for scoping; runtime vs zero-runtime CSS-in-JS
+- Why runtime CSS-in-JS clashes with Server Components
+- How Tailwind keeps CSS small; utility-first trade-offs
+- Choosing and migrating a styling strategy for a large codebase
+
+**Performance**
+- Why CSS is render-blocking; critical CSS
+- Compositor-only animations (`transform`/`opacity`) and the 60fps rule
+- `content-visibility` / `contain` for skipping off-screen work

@@ -1,0 +1,200 @@
+# Frontend System Design — Architect Level
+
+A first-principles syllabus for the interview round that most decides senior/staff/architect outcomes — and the one under-prepared engineers most often fail. The central insight: frontend system design is **not** trivia about React or CSS; it is the ability to take a vague prompt ("design a news feed") and drive a structured, trade-off-literate conversation from requirements to a defensible client architecture — component tree, API contract, data model, rendering strategy, network/caching plan, real-time approach, performance, and accessibility — out loud, in 45 minutes. This module turns that open-ended round into a **repeatable framework** you can run on any prompt, then drills it on the canonical case studies (feed, typeahead, chat) the way they are actually asked.
+
+**Legend:** 🎯 = high-frequency interview hotspot · ⚙️ = mechanism / implementation detail · 🧠 = mental-model / architecture & trade-off depth
+
+**Prerequisites:** The rest of Part II of this path — rendering internals (Module 3), performance & Core Web Vitals (Module 4), React internals (Module 5), state & data fetching (Module 6), and RSC/React 19 (Module 7) — plus comfort with HTTP and async JavaScript (Module 1). This module *integrates* those into a design conversation rather than re-teaching them.
+
+**Outcome:** Ability to run a repeatable framework (RADIO: Requirements → Architecture → Data model → Interface/API → Optimizations) end-to-end under time pressure; gather and scope functional vs non-functional requirements; decompose a UI into a component tree and place state correctly; design a client–server API contract (REST vs GraphQL, cursor vs offset pagination); model client-side data (normalization, server vs client state); choose a rendering strategy (CSR/SSR/SSG/ISR/streaming) per requirement; design data fetching, caching, prefetching and optimistic updates; pick a real-time transport (polling/long-polling/SSE/WebSocket) with reasons; defend performance, accessibility, i18n and resilient-state decisions; and execute the three canonical case studies (infinite-scroll feed, typeahead, real-time chat) while articulating trade-offs like an architect.
+
+---
+
+## [Module 0 — The Frontend System Design Round](?tab=learn#module-0) 🧠🎯
+- What this round actually tests: **structured thinking, trade-off fluency, and communication** — not memorized answers 🎯
+- Why strong coders fail it: they jump to a component or a library instead of clarifying the problem and driving a plan 🧠
+- The signal interviewers grade: can you scope ambiguity, justify decisions, and own the whole client architecture? 🎯
+- Frontend vs backend system design: the frontend round centers the **client** (UI architecture, rendering, network, perceived performance), not just boxes-and-arrows servers 🧠
+- The mindset shift: you are the **driver** of a collaborative design, narrating trade-offs out loud 🎯
+
+**Interview focus:** "How do you approach an open-ended 'design X' frontend question?", "What is this round really testing?", "How is frontend system design different from backend system design?"
+
+---
+
+## [Module 1 — A Repeatable Framework (RADIO) & Time Management](?tab=learn#module-1) 🎯🧠
+- The **RADIO** framework: **R**equirements → **A**rchitecture/components → **D**ata model → **I**nterface (API) → **O**ptimizations 🎯🧠
+- Why a framework beats improvising: it guarantees coverage, paces the 45 minutes, and signals seniority 🧠
+- A time budget: ~5 min requirements, ~10 min high-level architecture, ~10 min data + API, ~15 min deep-dives/optimizations, ~5 min wrap 🎯
+- How to **narrate** each phase and check in with the interviewer ("does this scope sound right?") 🧠
+- Adapting the framework when the interviewer steers you into one area (e.g. "just go deep on the feed") 🎯
+
+**Interview focus:** "Walk me through your framework for a frontend design question.", "How do you budget the time?", "What do you do if the interviewer pushes you to skip ahead?"
+
+---
+
+## [Module 2 — Requirements Gathering & Scoping](?tab=learn#module-2) 🎯🧠
+- **Functional requirements**: what the feature *does* (core user actions) — and explicitly cutting scope to the essentials 🎯
+- **Non-functional requirements**: performance, accessibility, responsiveness, offline, i18n, security, device/network constraints 🎯🧠
+- Asking the **clarifying questions** that show seniority: who are the users, scale, devices, real-time needs, existing constraints 🎯
+- Stating **assumptions** explicitly and getting buy-in before designing 🧠
+- The cost of skipping this: designing the wrong system confidently 🎯
+
+**Interview focus:** "What clarifying questions do you ask first?", "Functional vs non-functional requirements — give examples for a feed.", "How do you scope down a huge prompt to fit 45 minutes?"
+
+---
+
+## [Module 3 — Component Architecture & UI Decomposition](?tab=learn#module-3) 🎯⚙️
+- Breaking a screen into a **component tree**: containers vs presentational, reusable leaf components 🎯
+- Deciding **where state lives**: local vs lifted vs global; colocation and the "lowest common ancestor" rule 🎯🧠
+- Designing **component APIs** (props/events) and composition (children/slots) for reuse — ties to Module 7's composition model 🧠
+- Drawing the tree out loud and labeling data flow (props down, events up) ⚙️
+- When to introduce a design-system / primitive layer vs feature components 🧠
+
+**Interview focus:** "How do you break this UI into components?", "Where should this piece of state live and why?", "How do you design a reusable component's API?"
+
+---
+
+## [Module 4 — Client–Server API Design](?tab=learn#module-4) 🎯🧠
+- Designing the **contract** the frontend needs: endpoints/queries, request params, response shape 🎯
+- **REST vs GraphQL** for a UI: over-/under-fetching, round-trips, versioning, caching trade-offs 🎯🧠
+- **Pagination**: offset/limit vs **cursor-based** — why cursors win for infinite feeds (stability under inserts) 🎯⚙️
+- Shaping responses for the client: what to denormalize, what the UI actually renders, avoiding chatty waterfalls 🧠
+- Error contracts, partial data, and idempotency for mutations ⚙️
+
+**Interview focus:** "REST or GraphQL for this — why?", "Offset vs cursor pagination for an infinite feed?", "How do you design the API response shape for this screen?"
+
+---
+
+## [Module 5 — Client-Side Data Modeling & State Management](?tab=learn#module-5) 🎯🧠
+- **Server state vs client/UI state**: the single most clarifying distinction in modern frontend design (ties to Module 6) 🎯🧠
+- **Normalization**: storing entities by id (a client-side "database") to avoid duplication and sync bugs 🎯⚙️
+- Choosing a state approach: local state, context, a server-cache library (TanStack Query), or a global store — and *justifying* it 🧠
+- The store **shape**: entities, by-id maps, lists of ids, derived/selector data ⚙️
+- Cache invalidation and keeping multiple views of the same entity consistent 🧠
+
+**Interview focus:** "How do you model this data on the client?", "Server state vs client state — how does that change your design?", "Why normalize, and when is it overkill?"
+
+---
+
+## [Module 6 — Rendering Strategies (CSR / SSR / SSG / ISR / Streaming)](?tab=learn#module-6) 🎯🧠
+- The menu: **CSR**, **SSR**, **SSG**, **ISR**, and **streaming SSR** — what each optimizes 🎯🧠
+- Choosing per requirement: SEO + first paint (SSR/SSG) vs highly interactive app shell (CSR) vs mostly-static content (SSG/ISR) 🎯
+- How RSC/streaming (Module 7) changes the default and enables partial, progressive rendering 🧠
+- The trade-offs: TTFB, server cost, cache-ability, freshness, and complexity 🧠
+- Hydration cost and where it bites — tying back to performance 🎯⚙️
+
+**Interview focus:** "Which rendering strategy for this product, and why?", "When is SSR worth the server cost?", "How does streaming change your rendering decision?"
+
+---
+
+## [Module 7 — Data Fetching, Caching & Network Optimization](?tab=learn#module-7) 🎯⚙️
+- The fetching plan: when to fetch (on render, on interaction, on route), and avoiding client-side **waterfalls** 🎯🧠
+- **Caching** layers the client controls: in-memory cache, HTTP cache, stale-while-revalidate, request dedup 🎯⚙️
+- **Prefetching** and preloading (on hover/idle/viewport) for instant-feeling navigation 🎯
+- **Optimistic updates**: render the expected result immediately, reconcile or roll back on the server response 🎯⚙️
+- Debounce/throttle, request cancellation (AbortController), and handling out-of-order responses ⚙️
+
+**Interview focus:** "How do you make navigation feel instant?", "What is stale-while-revalidate and when do you use it?", "How do you implement an optimistic update safely?"
+
+---
+
+## [Module 8 — Real-Time & Live Data](?tab=learn#module-8) 🎯🧠
+- The transport menu: **short polling**, **long polling**, **Server-Sent Events (SSE)**, and **WebSockets** — how each works 🎯⚙️
+- Choosing one: update frequency, direction (one-way vs bidirectional), scale, and infra cost 🎯🧠
+- **SSE vs WebSocket**: one-way server push (simpler, auto-reconnect, HTTP) vs full duplex (chat, presence, collaboration) 🎯
+- Reliability concerns: reconnection, missed-message recovery, ordering, and backpressure 🧠⚙️
+- When real-time is overkill — polling a "good enough" interval vs the complexity of sockets 🧠
+
+**Interview focus:** "Polling vs SSE vs WebSocket — how do you choose?", "How would you add live updates to a feed/notifications?", "How do you handle reconnection and missed messages?"
+
+---
+
+## [Module 9 — Performance & Perceived Performance](?tab=learn#module-9) 🎯⚙️
+- **Loading performance**: code splitting, lazy loading, route-level chunks, and bundle budgets (ties to Module 4) 🎯⚙️
+- **List virtualization** ("windowing"): render only what's on screen for long/infinite lists 🎯⚙️
+- **Image & asset strategy**: responsive images, lazy images, modern formats, and CDN delivery 🎯
+- **Perceived performance**: skeletons, optimistic UI, instant feedback, and prioritizing above-the-fold 🧠🎯
+- Measuring against **Core Web Vitals** (LCP/INP/CLS) and defending a budget — the architect's job 🧠
+
+**Interview focus:** "How do you keep a feed with thousands of items fast?", "What is list virtualization and when do you need it?", "Loading vs perceived performance — how do you improve each?"
+
+---
+
+## [Module 10 — Accessibility, i18n & Resilient States](?tab=learn#module-10) 🎯🧠
+- **Accessibility (a11y)** as a design requirement: semantic HTML, keyboard navigation, focus management, ARIA, screen-reader flows 🎯🧠
+- **Internationalization (i18n)**: text expansion, RTL layouts (ties to logical properties in Module 8), locale formatting, and not hard-coding strings 🎯
+- The states every robust UI must design for: **loading, empty, error, offline, partial** 🎯🧠
+- Why architects raise these unprompted: they separate "works in the demo" from "works in production" 🧠
+- Designing for slow networks and flaky connections (retries, offline cache) ⚙️
+
+**Interview focus:** "How do you make this accessible?", "What states beyond the happy path must this UI handle?", "What changes for internationalization and RTL?"
+
+---
+
+## [Module 11 — Case Study: Infinite-Scroll News Feed](?tab=learn#module-11) 🎯⚙️🧠
+- Running the full **RADIO** framework on the canonical prompt end-to-end 🎯🧠
+- **Cursor pagination** + an **IntersectionObserver** to load the next page as the sentinel scrolls into view ⚙️🎯
+- **Virtualization** for a feed that can grow unbounded; recycling DOM nodes ⚙️
+- **Optimistic** likes/comments and keeping the normalized cache consistent across views 🎯
+- Live updates (new posts), media loading, prefetching, and accessibility of an infinite list 🧠
+
+**Interview focus:** "Design a news feed / infinite scroll.", "Offset vs cursor here, and how do you trigger the next page?", "How do you keep it fast as the list grows to thousands of items?"
+
+---
+
+## [Module 12 — Case Study: Typeahead / Autocomplete](?tab=learn#module-12) 🎯⚙️🧠
+- The full design: input → debounced query → fetch suggestions → ranked dropdown → keyboard selection 🎯
+- **Debouncing** input and **canceling** stale requests; handling **out-of-order responses** (race conditions) ⚙️🎯
+- **Caching** results per query and prefetching popular queries; client vs server ranking 🧠
+- **Accessibility**: the ARIA combobox pattern, keyboard navigation, and announcing results 🎯🧠
+- Trade-offs: minimum query length, request volume, result freshness 🧠
+
+**Interview focus:** "Design an autocomplete/typeahead.", "How do you avoid hammering the server on every keystroke?", "How do you handle responses arriving out of order?"
+
+---
+
+## [Module 13 — Case Study: Real-Time Chat](?tab=learn#module-13) 🎯⚙️🧠
+- The full design: message list, composer, conversations, and a **WebSocket** transport 🎯⚙️
+- **Optimistic send** with pending/sent/failed states and retry; **message ordering** and de-duplication 🎯⚙️
+- **Presence & typing indicators**, read receipts, and unread counts 🧠
+- **Reconnection & missed-message recovery** (resync since last-seen id) ⚙️🧠
+- Scaling the UI: pagination of history, virtualization, and storing messages in a normalized cache 🧠
+
+**Interview focus:** "Design a chat application.", "How do you guarantee message ordering and handle a dropped connection?", "How do optimistic sends and retries work?"
+
+---
+
+## [Module 14 — Driving the Conversation: Trade-offs & Communication](?tab=learn#module-14) 🧠🎯
+- The meta-skill: **narrating trade-offs** ("we *could* X, which buys us A but costs B; I'd choose Y because…") 🎯🧠
+- Structuring deep-dives when the interviewer steers, and gracefully handling "what about scale / failure / abuse?" 🧠
+- Stating **assumptions, constraints, and what you'd do with more time** — closing strong 🎯
+- Common failure modes to avoid: silent thinking, over-engineering, ignoring requirements, no trade-offs 🧠
+- Tailoring depth to the level you're interviewing for (senior vs staff vs architect) 🎯
+
+**Interview focus:** "How do you communicate trade-offs?", "How do you handle a follow-up that breaks your design?", "How do you close a system design interview strongly?"
+
+---
+
+## High-Yield Interview Question Bank (by theme) 🎯
+
+**Framework & process**
+- Approaching an open-ended "design X" prompt; the RADIO phases and time budget
+- Clarifying questions; functional vs non-functional requirements; scoping to 45 minutes
+- Driving the conversation, narrating trade-offs, and closing strong
+
+**Architecture & data**
+- UI decomposition into a component tree; where state should live
+- REST vs GraphQL; cursor vs offset pagination; designing the API response shape
+- Server state vs client state; normalizing client-side data; choosing a state approach
+- Choosing a rendering strategy (CSR/SSR/SSG/ISR/streaming) and why
+
+**Network, real-time & performance**
+- Avoiding waterfalls; caching, prefetching, stale-while-revalidate, optimistic updates
+- Polling vs long-polling vs SSE vs WebSocket; reconnection and missed messages
+- List virtualization, code splitting, image strategy, and perceived performance
+- Accessibility, internationalization, and designing loading/empty/error/offline states
+
+**Case studies (be able to design each end-to-end)**
+- Infinite-scroll news feed (cursor pagination + IntersectionObserver + virtualization + optimistic)
+- Typeahead / autocomplete (debounce, cancellation, out-of-order responses, ARIA combobox)
+- Real-time chat (WebSocket, optimistic send, ordering, presence, reconnection)

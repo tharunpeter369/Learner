@@ -1,0 +1,233 @@
+# TypeScript Mastery — Architect Level
+
+A deep, type-system-up syllabus for engineers who must reason about *why* TypeScript infers what it does, model complex domains in types, push back on `any`, and defend their type architecture in senior/staff/architect interviews. TypeScript is treated here not as "JavaScript with annotations" but as a **structural type system and a compiler** with its own semantics.
+
+**Legend:** 🎯 = high-frequency interview hotspot · ⚙️ = compiler / tooling internals · 🧠 = type-level / mental-model depth
+
+**Prerequisites:** Comfortable writing production JavaScript (closures, `this`, prototypes, async, modules — ideally Module 1 of this path), able to read ES2015+ syntax, and some prior exposure to typed code (TS, Flow, or a statically-typed language).
+
+**Outcome:** Ability to explain how the type system models values as sets, drive and debug inference, build reusable type-level utilities (conditional, mapped, template-literal types), design type-safe public APIs and runtime boundaries, configure `tsconfig` strictness deliberately, reason about the compiler/emit pipeline and type-check performance, and lead a JavaScript-to-TypeScript migration — articulating the trade-offs at the level expected of an architect.
+
+---
+
+## [Module 0 — How to Think in Types](?tab=learn#module-0) 🧠
+- TypeScript is a **structural** type system: compatibility is by shape, not by name (vs nominal typing in Java/C#)
+- **Types are sets of values**: `string` is "all strings", a union is set union, `never` is the empty set, `unknown` is the universal set
+- The two worlds: **type space vs value space** — what exists at compile time vs runtime, and why a name can mean different things in each
+- **Type erasure**: types vanish during compilation — TypeScript guarantees *nothing* at runtime
+- The compiler's job: **type-check** *and* **emit/downlevel** are separate concerns; type errors don't (by default) stop emit
+- Soundness vs convenience: TS is deliberately **unsound** in places (it trades a few holes for productivity) 🧠
+
+**Interview focus:** "What is structural typing and how does it differ from nominal?", "Why can't TypeScript catch a wrong API response shape at runtime?", "Is TypeScript sound? Give an example where it isn't."
+
+---
+
+## [Module 1 — The Type System: Primitives to Unions](?tab=learn#module-1) 🎯
+- Primitive types, `literal` types, and **literal widening** (`let` vs `const`, `as const`)
+- The special types: **`any`** (opt-out, infectious), **`unknown`** (safe top type), **`never`** (bottom type), **`void`**, `null`/`undefined`
+- **`any` vs `unknown`** — why `unknown` forces you to narrow before use 🎯
+- **`type` alias vs `interface`** — what each can/can't do, declaration merging, performance/extension differences 🎯
+- **Union** (`A | B`) and **intersection** (`A & B`) types; modelling "one of" vs "both"
+- Type assertions (`as`), `as const`, non-null assertion (`!`), and when each is a code smell
+- Array, tuple, readonly tuple, and named tuple members
+
+**Interview focus:** "`any` vs `unknown` — when do you use each?", "`type` vs `interface` — which and why?", "What does `as const` actually do?"
+
+---
+
+## [Module 2 — Narrowing & Control-Flow Analysis](?tab=learn#module-2) 🎯
+- How the compiler **narrows** a union along the control-flow graph
+- Built-in narrowing: `typeof`, `instanceof`, `in`, truthiness, equality
+- **Discriminated (tagged) unions** — the single most important modelling pattern in TS 🎯
+- **User-defined type guards** (`arg is Foo`) and where they're unsafe
+- **Assertion functions** (`asserts arg is Foo`, `asserts condition`)
+- **Exhaustiveness checking** with `never` (the `default` case that can't happen) 🎯
+- Narrowing pitfalls: aliasing, function-call invalidation, `let` re-widening
+
+**Interview focus:** "Model a state machine / API result with a discriminated union.", "Write a type guard and explain when it lies.", "How do you guarantee a `switch` handles every case?"
+
+---
+
+## [Module 3 — Functions, Generics & Variance](?tab=learn#module-3) 🎯🧠
+- Function types, optional/default/rest params, `this` parameters
+- **Overloads** vs union params vs generics — when to reach for each
+- **Generics**: type parameters, **constraints** (`T extends ...`), default type params
+- **Inference**: how TS infers type args from call sites; inference from return position; the `NoInfer` utility
+- **Variance** 🧠: covariance, contravariance, **bivariance** of method params, and `strictFunctionTypes`
+- Why arrays are (unsoundly) covariant; why callback params are contravariant
+- Generic function design: inferring the *narrowest* useful type
+
+**Interview focus:** "When do you use an overload vs a generic?", "Explain covariance vs contravariance with a function example.", "Why does `strictFunctionTypes` exist?"
+
+---
+
+## [Module 4 — Objects, Interfaces & Classes](?tab=learn#module-4)
+- Object types: optional (`?`), `readonly`, **index signatures**, and **excess property checks** (the "object literal freshness" rule) 🎯
+- `interface extends` vs intersection; merging behaviour
+- Classes: access modifiers (`public`/`protected`/`private`) vs runtime `#private` fields 🎯
+- `abstract` classes/members, `implements`, parameter properties, `override`, `strictPropertyInitialization`
+- Structural compatibility of classes (a class is just its shape) — the `private` field exception
+- `this` types and fluent/builder return typing
+
+**Interview focus:** "What is an excess property check and why does assigning a variable bypass it?", "`private` (TS) vs `#private` (JS) — runtime difference?", "Are two unrelated classes with the same shape assignable?"
+
+---
+
+## [Module 5 — Type-Level Programming: Conditional & Mapped Types](?tab=learn#module-5) 🧠🎯
+- **Conditional types** (`T extends U ? X : Y`) and the `infer` keyword 🎯
+- **Distributive conditional types** over unions (and how to switch distribution off with `[T]`)
+- **Mapped types** (`{ [K in keyof T]: ... }`), modifiers (`+/-readonly`, `+/-?`)
+- **Key remapping** with `as` in mapped types; filtering keys
+- **Template literal types** — string manipulation at the type level (`` `get${Capitalize<K>}` ``) 🎯
+- Recursive types and the recursion/instantiation depth limits
+- When type-level cleverness becomes a maintenance and compile-time liability 🧠
+
+**Interview focus:** "Implement a conditional type using `infer`.", "What is a distributive conditional type?", "Build a mapped type that makes every key optional and readonly."
+
+---
+
+## [Module 6 — `keyof`, Indexed Access & Utility Types](?tab=learn#module-6) 🎯
+- **`keyof`** and the **indexed access** type `T[K]`; indexing with unions
+- The built-in utility types and what they're made of: `Partial`, `Required`, `Readonly`, `Pick`, `Omit`, `Record`, `Exclude`, `Extract`, `NonNullable`, `ReturnType`, `Parameters`, `InstanceType`, `Awaited`
+- **Implementing utilities from scratch** (`MyPick`, `MyOmit`, `MyReturnType`) — the classic interview drill 🎯
+- `Awaited<T>` and recursively unwrapping promises
+- Composing utilities to transform real-world API/DB types
+
+**Interview focus:** "Implement `Pick` / `Omit` / `ReturnType` from scratch.", "How does `Awaited` unwrap nested promises?", "Derive an `Update` type from an entity type using utilities."
+
+---
+
+## [Module 7 — Inference Control: `satisfies`, `const` Params & Branding](?tab=learn#module-7) 🧠
+- The **`satisfies`** operator — validate against a type *without widening* the inferred type 🎯
+- `as const` + `satisfies` for typed config objects and lookup tables
+- **`const` type parameters** (`<const T>`) for precise literal inference
+- **Branded / nominal types** — simulating nominal typing for IDs, validated strings, units 🎯
+- **Opaque types** and "parse, don't validate" at the type level
+- Controlling where inference happens: `NoInfer`, positional inference, helper-function patterns
+
+**Interview focus:** "`as` vs `satisfies` — what's the difference?", "How do you make two `string` IDs non-interchangeable?", "Why might you reach for a branded type?"
+
+---
+
+## [Module 8 — Declaration Files & Ambient Types](?tab=learn#module-8) ⚙️
+- What a `.d.ts` file is and why it exists (types without implementation)
+- **`declare`** for ambient values, **global augmentation** (`declare global`), and **module augmentation** 🎯
+- `declare module "x"` for untyped packages and non-code imports (`.css`, `.svg`)
+- The `@types` ecosystem and DefinitelyTyped; how `types`/`typesVersions` resolve
+- Triple-slash directives (legacy) vs modern `import type`
+- Authoring types for a library: what consumers see vs what you ship
+
+**Interview focus:** "How do you add types to an untyped npm package?", "What does `declare global` do and when is it dangerous?", "Where do `@types/*` packages come from?"
+
+---
+
+## [Module 9 — Modules, Resolution & Interop](?tab=learn#module-9) ⚙️
+- ESM vs CommonJS as seen by TypeScript; `import type` / `export type` and elision
+- **`moduleResolution`**: `node10` (legacy) vs `node16`/`nodenext` vs `bundler` 🎯
+- **`esModuleInterop`** and `allowSyntheticDefaultImports` — what they actually emit
+- **`isolatedModules`** — why single-file transpilers (Babel/esbuild/swc) impose constraints 🎯
+- **`verbatimModuleSyntax`** and the future of type-only import elision
+- **Project references** and composite builds for monorepos
+- Path mapping (`paths`/`baseUrl`) and why it needs a runtime resolver too
+
+**Interview focus:** "What does `isolatedModules` change and why do bundlers need it?", "Explain `esModuleInterop` in terms of emitted code.", "How do project references speed up a monorepo?"
+
+---
+
+## [Module 10 — `tsconfig` & Strictness Flags](?tab=learn#module-10) 🎯
+- The compilation surface: `target`, `lib`, `module`, `moduleResolution`, `jsx`, `outDir`/`rootDir`
+- The **`strict`** family, flag by flag: `strictNullChecks`, `noImplicitAny`, `strictFunctionTypes`, `strictBindCallApply`, `strictPropertyInitialization`, `useUnknownInCatchVariables`, `alwaysStrict` 🎯
+- Beyond `strict`: **`noUncheckedIndexedAccess`**, **`exactOptionalPropertyTypes`**, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `noImplicitReturns`
+- `skipLibCheck`, `declaration`, `sourceMap`, `incremental`, `composite`
+- Designing a strict-by-default config and a sane migration ramp
+
+**Interview focus:** "What does `strictNullChecks` change about the type of every value?", "What does `noUncheckedIndexedAccess` protect against?", "Which strict flags would you turn on first in a legacy codebase?"
+
+---
+
+## [Module 11 — Runtime Validation & The Type Boundary](?tab=learn#module-11) 🎯
+- Why type erasure means **types are not validation** — the lesson that bites every team in production 🎯
+- The **trust boundary**: network, `localStorage`, `JSON.parse`, env vars, user input, `fetch` responses
+- **"Parse, don't validate"** — turning unknown input into a typed value once, at the edge
+- Schema-first with **Zod / Valibot / io-ts / ArkType**: deriving the static type from the schema (`z.infer`) so there's one source of truth 🎯
+- Type predicates vs schema validators; where each belongs
+- Cost/benefit: where to validate, where to trust
+
+**Interview focus:** "Your API typed a field as `number` but the server sent a string — what happens, and how do you prevent it?", "What does 'parse, don't validate' mean?", "How do you keep a runtime schema and a static type in sync?"
+
+---
+
+## [Module 12 — Declaration Merging, Enums & Decorators](?tab=learn#module-12)
+- **Declaration merging**: interfaces, namespaces, and merging into functions/classes
+- **Enums**: numeric vs string enums, reverse mappings, and the **`const enum`** inlining pitfalls (and why many teams ban them) 🎯
+- Alternatives to enums: union of literals + `as const` objects
+- **Decorators**: the TC39 Stage 3 decorators vs legacy `experimentalDecorators`; what they desugar to ⚙️
+- `reflect-metadata` and `emitDecoratorMetadata` (how Nest/TypeORM-style DI works)
+- **Namespaces** (legacy) — why modules replaced them
+
+**Interview focus:** "Why do many style guides avoid `enum` (especially `const enum`)?", "What's the difference between Stage 3 and legacy decorators?", "How does `reflect-metadata` enable dependency injection?"
+
+---
+
+## [Module 13 — The Compiler & Type-Check Performance](?tab=learn#module-13) ⚙️🧠
+- The `tsc` pipeline: scanner → parser → binder → **checker** → emitter; the **language service** behind your editor ⚙️
+- **Type-checking vs transpiling**: why Babel/esbuild/swc can "strip types" fast but *don't* type-check 🎯
+- What makes type-checking slow: large unions, deep conditional/recursive types, inference blow-ups, huge `.d.ts`
+- Tools: `--incremental`, `--build` (project references), `skipLibCheck`, `extendedDiagnostics`, `--generateTrace`
+- **`isolatedDeclarations`** and faster declaration emit
+- Node's native type-stripping / `--experimental-strip-types` and where it fits
+
+**Interview focus:** "Why is `tsc` slow on a big repo and how do you speed it up?", "If esbuild compiles TS, why do you still run `tsc`?", "What's the difference between stripping types and checking them?"
+
+---
+
+## [Module 14 — Migration & Library Authoring](?tab=learn#module-14)
+- **JS → TS migration** strategies: `allowJs`/`checkJs`, `// @ts-check` + **JSDoc types**, file-by-file conversion, ratcheting strictness 🎯
+- Taming `any` during migration: `unknown` at boundaries, `@ts-expect-error` (over `@ts-ignore`), tracked debt
+- **Library authoring**: shipping types, dual ESM/CJS type resolution, `exports` map `types` conditions
+- **DTS bundling** (api-extractor / tsup) and avoiding leaking internal types
+- Versioning your types as a public API; `@internal`, `@deprecated`, doc comments
+
+**Interview focus:** "How would you migrate a 200k-line JS codebase to TS without a big-bang rewrite?", "`@ts-ignore` vs `@ts-expect-error` — which and why?", "What does a library author need to get right so consumers' types 'just work'?"
+
+---
+
+## [Module 15 — Type-Driven Design & Architecture](?tab=learn#module-15) 🎯
+- **Make illegal states unrepresentable**: modelling domains so bad combinations don't type-check 🧠
+- Type-safe patterns: typed **event emitter**, the **builder** pattern, **dependency injection** typing, exhaustive reducers
+- Generic, inference-friendly **public API design** — ergonomics for consumers
+- Domain modelling: branded IDs, value objects, result/either types vs throwing
+- Architect trade-offs: type-level power vs readability, compile-time cost, team skill ceiling 🧠
+
+**Interview focus:** "Design types so an invalid state can't be constructed.", "Type a fully type-safe event emitter (`on('login', user => ...)`).", "When is a clever type *not* worth it?"
+
+---
+
+## High-Yield Interview Question Bank (by theme) 🎯
+
+**Mental model / explain it**
+- Structural vs nominal typing; where TS is deliberately unsound
+- `any` vs `unknown` vs `never`; types as sets of values
+- Type space vs value space; why types are erased at runtime
+- Covariance / contravariance / bivariance with concrete examples
+- `as` vs `satisfies`; literal widening and `as const`
+
+**Implement from scratch (type-level)**
+- `Pick`, `Omit`, `Partial`, `Required`, `Readonly`, `Record`
+- `ReturnType`, `Parameters`, `Awaited`, `NonNullable`
+- `DeepPartial` / `DeepReadonly` (recursive mapped types)
+- A `infer`-based conditional (e.g. `UnwrapPromise`, `First<T>`, `Last<T>`)
+- Template-literal types (e.g. `CamelCase`, `PathOf<T>`)
+
+**Model it**
+- A discriminated union for an async result / state machine
+- Branded types for IDs / validated input
+- A typed event emitter with per-event payloads
+- "Make illegal states unrepresentable" for a real domain (form, order, connection)
+
+**Tooling / architecture**
+- Add types to an untyped npm package (`declare module` / `@types`)
+- Choose and justify a `tsconfig` strictness baseline
+- Validate untrusted input at the boundary (Zod + `z.infer`)
+- Speed up a slow `tsc` build; explain `tsc` vs esbuild/swc
+- Plan a gradual JS → TS migration with ratcheting strictness

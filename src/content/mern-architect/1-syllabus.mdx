@@ -1,0 +1,254 @@
+# JavaScript Internals & Mastery — Architect Level
+
+A deep, engine-up syllabus for engineers who must reason about *why* JavaScript behaves the way it does, make system-level decisions, and defend those decisions in senior/staff/architect interviews.
+
+**Legend:** 🎯 = high-frequency interview hotspot · ⚙️ = engine/runtime internals · 🧠 = mental-model / spec-level depth
+
+**Prerequisites:** Comfortable writing production JS, familiarity with ES2015+, basic understanding of the browser/Node runtime, and exposure to at least one large codebase.
+
+**Outcome:** Ability to explain the engine's execution from source text to optimized machine code, diagnose memory and performance problems from first principles, design async-heavy and modular systems, and articulate trade-offs at the level expected of an architect.
+
+---
+
+## [Module 0 — How to Read the Language Itself](?tab=learn#module-0)
+- The ECMAScript specification: abstract operations, internal slots (`[[…]]`), and how to actually read the spec 🧠
+- The TC39 process: proposal stages 0–4, why features land when they do
+- Engines in the wild: V8 (Chrome/Node), SpiderMonkey (Firefox), JavaScriptCore (Safari) — where they diverge
+- Spec vs implementation: what's guaranteed vs what's an optimization detail
+
+---
+
+## [Module 1 — Engine Internals: Source to Machine Code](?tab=learn#module-1) ⚙️
+- Pipeline overview: source → scanner/tokenizer → parser → AST → bytecode → JIT
+- **Parsing:** eager vs lazy (pre-parsing), why function placement affects startup cost
+- **Ignition** (V8 bytecode interpreter): what bytecode buys you
+- **JIT tiers:** Sparkplug (baseline), Maglev (mid-tier), TurboFan (optimizing) 🧠
+- **Hidden classes / Shapes / Maps** and how object structure drives optimization 🎯
+- **Inline caches** (monomorphic → polymorphic → megamorphic) 🎯
+- **Speculative optimization & deoptimization**: what triggers a bailout
+- **Optimization killers**: changing object shape after creation, mixed-type arrays, `arguments` leakage, `try/catch` (historically), `delete` on hot objects
+- Practical: read optimization/deopt traces (`--trace-opt`, `--trace-deopt`)
+
+**Interview focus:** "Why is monomorphic code faster?", "What is a hidden class and how do you avoid breaking it?", "Walk me through what happens from parse to execution."
+
+---
+
+## [Module 2 — Memory Model & Garbage Collection](?tab=learn#module-2) ⚙️
+- Stack vs heap; what lives where; value vs reference semantics 🎯
+- Memory lifecycle: allocate → use → release
+- **Generational GC:** young (Scavenger / Cheney's algorithm) vs old space
+- **Mark-and-Sweep / Mark-Compact**; the tri-color marking abstraction 🧠
+- Incremental, concurrent, and parallel GC (V8 Orinoco) — reducing main-thread pauses
+- **Memory leaks** and how to find them: detached DOM nodes, forgotten timers/intervals, unbounded caches, closures capturing large scopes, lingering event listeners, accidental globals 🎯
+- `WeakMap`, `WeakSet`, `WeakRef`, `FinalizationRegistry` — when and *why not*
+- Tooling: heap snapshots, allocation timelines, three-snapshot leak technique, retained vs shallow size
+
+**Interview focus:** "How does GC decide what to collect?", "Show me a closure that leaks memory.", "Why might a long-lived SPA's memory grow over time?"
+
+---
+
+## [Module 3 — Execution Model: Contexts, Scope & Closures](?tab=learn#module-3)
+- Execution context: creation phase vs execution phase
+- Lexical environment, variable environment, environment records 🧠
+- The scope chain and identifier resolution
+- **Hoisting** for `var`, `let`/`const`, function declarations vs expressions; the **Temporal Dead Zone** 🎯
+- **Closures**: the precise mechanics (closed-over variables, not values), shared vs per-iteration bindings, the classic loop-`var` bug 🎯
+- Closure memory cost and how engines optimize captured variables
+- Block scoping internals
+
+**Interview focus:** "Explain closures with a real use case.", "Why does `let` in a `for` loop behave differently from `var`?", "What is the TDZ?"
+
+---
+
+## [Module 4 — `this`, Binding & Function Invocation](?tab=learn#module-4)
+- The four binding rules: default, implicit, explicit, `new` 🎯
+- `call` / `apply` / `bind` — semantics and hand-rolled implementations 🎯
+- Arrow functions and lexical `this`; why they can't be `new`-ed
+- Losing `this` in callbacks and class methods; binding strategies
+- `new` operator step-by-step (object creation, prototype link, constructor return rules) 🎯
+
+**Interview focus:** "Implement `bind` from scratch.", "What does `new` actually do?", "Predict the `this` value in these snippets."
+
+---
+
+## [Module 5 — Objects, Prototypes & Inheritance](?tab=learn#module-5)
+- Property descriptors: `writable`, `enumerable`, `configurable`; `Object.defineProperty`
+- Getters/setters and computed access
+- **Prototype chain**: `[[Prototype]]`, `__proto__` vs `prototype`, `Object.create` 🎯
+- `class` syntax as sugar — what it desugars to; `super`, private fields (`#x`), static members 🧠
+- Inheritance patterns: prototypal, parasitic, mixins, composition over inheritance
+- Property lookup, shadowing, and enumeration order rules
+- `instanceof` and `Symbol.hasInstance` internals
+
+**Interview focus:** "Implement classical inheritance without `class`.", "How does prototype lookup work?", "Difference between `__proto__` and `prototype`."
+
+---
+
+## [Module 6 — Types, Coercion & Equality](?tab=learn#module-6) 🎯
+- Primitives vs objects; autoboxing/unboxing of wrapper objects
+- The abstract operations: `ToPrimitive`, `ToNumber`, `ToString`, `ToBoolean`, `OrdinaryToPrimitive` 🧠
+- `==` vs `===` coercion algorithm, step by step 🎯
+- Falsy values, `NaN`, `-0` vs `+0`, `Object.is`
+- `Symbol` (identity, well-known symbols) and `BigInt` (semantics, interop limits)
+- `typeof`, `instanceof`, `Array.isArray`, structural type checks
+
+**Interview focus:** "Explain why `[] == ![]` is `true`.", "When is `==` actually safe?", "How does `Symbol.toPrimitive` work?"
+
+---
+
+## [Module 7 — The Event Loop & Concurrency Model](?tab=learn#module-7) ⚙️🎯
+- Single-threaded execution + non-blocking I/O: the core mental model
+- Call stack, Web APIs / host environment, task (macrotask) queue, **microtask** queue
+- **Microtask vs macrotask ordering** — the question everyone asks 🎯
+- Browser event loop and integration with rendering (`requestAnimationFrame`, style/layout/paint, when the page actually updates)
+- **Node.js event loop via libuv**: timers → pending callbacks → poll → check → close phases
+- `process.nextTick` vs `Promise` microtask vs `setImmediate` vs `setTimeout(0)` ordering 🎯
+- Starvation, blocking the loop, and long-task mitigation
+
+**Interview focus:** "Predict the output order of mixed `setTimeout`/`Promise`/`async`.", "Difference between microtask and macrotask.", "How does Node's event loop differ from the browser's?"
+
+---
+
+## [Module 8 — Asynchronous JavaScript In Depth](?tab=learn#module-8) 🎯
+- Callbacks → inversion of control → callback hell
+- **Promises**: states, the resolution algorithm, why `.then` callbacks run as microtasks, chaining, error propagation 🎯
+- Building a spec-compliant Promise (Promises/A+) — a classic architect exercise 🎯
+- Combinators: `all`, `allSettled`, `race`, `any` — semantics and failure modes
+- **Generators & iterators**: `function*`, `yield`, two-way communication, lazy sequences 🧠
+- **`async`/`await`** as generators + promises; desugaring and the hidden microtask steps 🧠
+- Async iterators and `for await...of`
+- Cancellation: `AbortController`/`AbortSignal`; timeouts; concurrency limiting
+
+**Interview focus:** "Implement `Promise.all`.", "Implement a promise-based retry/timeout/concurrency limiter.", "How does `await` actually suspend a function?"
+
+---
+
+## [Module 9 — Iteration, Collections & Protocols](?tab=learn#module-9)
+- Iterable and iterator protocols (`Symbol.iterator`) 🧠
+- Built-in iterables; making custom objects iterable
+- `Map` / `Set` / `WeakMap` / `WeakSet`: semantics, key equality, when to choose each 🎯
+- Spread, destructuring, and rest in terms of iteration
+- Array internals: holey vs packed arrays, why sparse arrays deoptimize ⚙️
+
+**Interview focus:** "Make an object iterable.", "When would you use a `Map` over a plain object?"
+
+---
+
+## [Module 10 — Metaprogramming](?tab=learn#module-10)
+- `Proxy` traps (get, set, has, deleteProperty, apply, construct, …) and use cases 🎯
+- `Reflect` and why it pairs with Proxy
+- Well-known symbols: `iterator`, `asyncIterator`, `toPrimitive`, `hasInstance`, `toStringTag` 🧠
+- Property descriptor manipulation, sealing/freezing, `Object.freeze` depth limits
+- Risks: performance overhead of proxies, invariants you must preserve
+
+**Interview focus:** "Build a reactive/observable object with Proxy.", "Implement validation or default values via traps."
+
+---
+
+## [Module 11 — Modules & The Loading Pipeline](?tab=learn#module-11) 🎯
+- Historical: IIFE, revealing module pattern, the global-namespace problem
+- **CommonJS**: synchronous `require`, module caching, `module.exports` vs `exports`, circular dependency behavior 🎯
+- AMD/UMD (context, why they existed)
+- **ES Modules**: static structure, **live bindings**, hoisting of imports, top-level `await`, strict-by-default 🧠
+- ESM ↔ CJS interop pitfalls in Node
+- Dynamic `import()`, tree-shaking enablement, and bundler implications
+- Module resolution algorithms (Node resolution, `exports` map, conditional exports)
+
+**Interview focus:** "ESM vs CommonJS — differences and interop issues.", "How do circular imports resolve in each system?", "What makes ESM tree-shakeable?"
+
+---
+
+## [Module 12 — Performance Engineering](?tab=learn#module-12) ⚙️🎯
+- Measuring before optimizing: DevTools Performance panel, flame charts, `performance.now`, `PerformanceObserver`
+- Main-thread budget; **long tasks**; the 60fps frame budget
+- **Debounce vs throttle** (with implementations) 🎯
+- Critical rendering path; layout thrashing; batching DOM reads/writes
+- **Web Workers**, `SharedArrayBuffer`, `Atomics` for true parallelism
+- **WebAssembly** interop: when to reach for it, the boundary cost
+- Code splitting, lazy loading, prefetch/preload strategies
+- Avoiding deopts in hot paths (tie back to Modules 1–2)
+
+**Interview focus:** "Implement debounce and throttle.", "How would you find and fix jank?", "When do you move work off the main thread?"
+
+---
+
+## [Module 13 — Runtime Environments: Browser & Node Internals](?tab=learn#module-13) ⚙️
+- **Browser:** DOM as a tree, reflow vs repaint, the rendering pipeline, storage (localStorage/IndexedDB/cookies), Service Workers & caching strategies, `fetch` and Streams
+- **Node.js:** architecture (V8 + libuv + C++ bindings), Buffers, Streams & **backpressure** 🎯, Worker Threads vs Cluster vs child processes, the module system, `process` and lifecycle
+- Cross-environment differences that bite in production
+
+**Interview focus:** "Explain backpressure in streams.", "Worker threads vs cluster — when each?", "What causes reflow and how do you minimize it?"
+
+---
+
+## [Module 14 — Error Handling, Debugging & Observability](?tab=learn#module-14)
+- Error types, custom error classes, `cause`, error subclassing pitfalls
+- Synchronous vs async error propagation; unhandled rejections; `try/catch/finally` semantics (including `finally` overriding returns) 🎯
+- Stack traces, async stack traces, source maps
+- Defensive design: fail fast vs degrade gracefully
+- Production observability: structured logging, error boundaries (conceptual), telemetry
+
+**Interview focus:** "How do you handle errors across async boundaries?", "What does `finally` do with a `return` in `try`?"
+
+---
+
+## [Module 15 — Security Internals](?tab=learn#module-15)
+- **Prototype pollution**: how it happens, impact, mitigations 🎯
+- XSS (stored/reflected/DOM), output encoding, Trusted Types
+- CSRF, CORS internals (preflight, credentials), CSP
+- Supply-chain risk in the JS ecosystem; lockfiles, integrity hashes
+- Sandboxing and the dangers of `eval` / `Function`
+
+**Interview focus:** "What is prototype pollution and how do you defend against it?", "Explain CORS and a preflight request."
+
+---
+
+## [Module 16 — Patterns, Architecture & Design Trade-offs](?tab=learn#module-16)
+- GoF patterns expressed idiomatically in JS: Singleton, Factory, Observer/PubSub, Strategy, Decorator, Proxy, Module
+- SOLID and how it maps (and doesn't) to JS/TS
+- Dependency injection and inversion of control in JS
+- State management paradigms: unidirectional data flow, event-driven, reactive (observables)
+- Functional core: immutability, pure functions, composition, currying, functors/monads (conceptual) 🧠
+- Architect-level trade-offs: monolith vs modular, build-time vs runtime, abstraction cost
+
+**Interview focus:** "Implement an event emitter / pub-sub.", "Design a plugin system.", "When does immutability help and when does it cost you?"
+
+---
+
+## [Module 17 — Tooling & The Compilation Layer](?tab=learn#module-17)
+- Transpilation (Babel) and what downleveling actually emits 🧠
+- AST manipulation and codemods (`@babel`, ESLint rule authoring at a high level)
+- TypeScript's relationship to JS: structural typing, erasure, what types do *not* guarantee at runtime
+- Bundlers' job: module graph, scope hoisting, tree-shaking, minification
+
+**Interview focus:** "What does `async/await` compile to for old targets?", "Why can TypeScript types not be trusted at runtime?"
+
+---
+
+## High-Yield Interview Question Bank (by theme) 🎯
+
+**Output prediction / mental model**
+- Mixed `setTimeout` + `Promise` + `async/await` ordering
+- Closure-in-loop with `var` vs `let`
+- `this` resolution across object methods, arrows, and detached references
+- Coercion puzzlers (`==`, `+`, `[]`/`{}`)
+
+**Implement from scratch**
+- `bind`, `call`, `apply`
+- `Promise` (A+), `Promise.all`, `allSettled`
+- `debounce`, `throttle`, `once`, `memoize`
+- `curry`, `compose`/`pipe`, deep clone, deep equal
+- Event emitter / pub-sub, simple Proxy-based reactive state
+- `new` operator, `Object.create`, prototypal inheritance
+
+**Explain the internals**
+- Hidden classes & inline caches; deopt triggers
+- Event loop (browser vs Node), micro/macrotasks
+- GC generations and leak diagnosis
+- ESM vs CJS resolution and live bindings
+
+**System / architecture**
+- Design a rate limiter / request scheduler with concurrency control
+- Design caching with TTL and eviction (and why `WeakMap` helps)
+- Diagnose a memory leak in a long-running SPA
+- Move CPU-bound work off the main thread; choose worker strategy

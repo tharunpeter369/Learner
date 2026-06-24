@@ -1,0 +1,182 @@
+# Performance & Core Web Vitals — Architect Level
+
+A measurement-first syllabus for engineers who must make a real application **fast and keep it fast** — and prove it with numbers. Where Module 3 explained *how the browser renders*, this module is the **engineering discipline**: how to measure, set budgets, optimize the loading waterfall, tune the network, control JavaScript and asset cost, choose a rendering strategy, and monitor it all in the field. The goal is to diagnose any "it's slow" report from first principles and defend the fix in a senior/staff/architect interview.
+
+**Legend:** 🎯 = high-frequency interview hotspot · ⚙️ = browser/network internals · 🧠 = mental-model / methodology depth
+
+**Prerequisites:** Comfortable with HTML/CSS/JS and the browser rendering pipeline (Module 3 of this path strongly recommended — this module builds on it and avoids repeating the mechanics). Familiarity with Chrome DevTools and a bundler.
+
+**Outcome:** Ability to run a measurement-first performance investigation, diagnose and fix each Core Web Vital, optimize the critical loading path, reason about HTTP/2-3 and caching layers, cut JavaScript and asset cost, pick the right rendering/delivery strategy for a use case, measure real users in the field, and enforce performance with budgets in CI — articulating the trade-offs at an architect's level.
+
+---
+
+## [Module 0 — The Performance Mindset & Methodology](?tab=learn#module-0) 🧠🎯
+- **Measure first, optimize second**: never guess; profile, change one thing, re-measure
+- **Lab vs field (RUM)** data — why they disagree and when to trust each
+- **Percentiles** (why p75, not the average) and long-tail users
+- **Perceived vs actual** performance: skeleton screens, optimistic UI, progress
+- The **business cost of slowness** (bounce, conversion) — how to justify the work
+- The shape of an investigation: a repeatable methodology
+
+**Interview focus:** "How do you approach a 'the site is slow' report?", "Lab vs field data — which do you trust?", "Why report p75 instead of the mean?"
+
+---
+
+## [Module 1 — Core Web Vitals: Diagnose & Fix](?tab=learn#module-1) 🎯
+- The three CWV as **engineering targets** (not just definitions — see Module 3 for the rendering mechanics)
+- **LCP**: the common causes (slow TTFB, render-blocking resources, lazy-loaded hero, late-discovered image) and the fixes 🎯
+- **CLS**: causes (un-sized media, injected content, web fonts, animations of layout props) and fixes (`width/height`, `aspect-ratio`, reserve space) 🎯
+- **INP**: causes (long tasks, heavy event handlers, large DOM) and fixes (yield, defer, reduce work) 🎯
+- Supporting metrics: **TTFB**, **FCP** — and how they feed the headline vitals
+- Reading an attribution: which element/resource is to blame
+
+**Interview focus:** "Your LCP is 5s — how do you find and fix the cause?", "What causes CLS and how do you eliminate it?", "How do you improve INP?"
+
+---
+
+## [Module 2 — The Loading Waterfall & Critical Path](?tab=learn#module-2) ⚙️🎯
+- Reading a **request waterfall**: queuing, connection, TTFB, download
+- **TTFB** breakdown: DNS → connect → TLS → server think-time → first byte
+- The **critical request chain**: what must load before first paint / LCP
+- Render-blocking vs parser-blocking (the optimization view; mechanics in Module 3)
+- **Prioritization**: resource priorities, `fetchpriority`, early hints (`103`)
+- Eliminating waterfalls: inlining critical CSS, preconnect, preloading the LCP image
+
+**Interview focus:** "Walk through a slow waterfall and what you'd fix.", "What is TTFB made of?", "How do you speed up the LCP resource?"
+
+---
+
+## [Module 3 — Network: HTTP/2, HTTP/3, Compression & CDNs](?tab=learn#module-3) ⚙️
+- Latency vs bandwidth; why round-trips dominate (RTT, the speed of light)
+- **HTTP/1.1** head-of-line blocking → **HTTP/2 multiplexing** → **HTTP/3 over QUIC** (no TCP HOL) 🎯
+- **TLS** handshake cost; 0-RTT; connection reuse and `preconnect`
+- **Compression**: gzip vs **Brotli**; what to compress (text, not images)
+- **CDNs & the edge**: caching close to users, edge compute, origin shielding
+- Why "just bundle everything into one file" stopped being good advice under HTTP/2
+
+**Interview focus:** "HTTP/1.1 vs HTTP/2 vs HTTP/3?", "Why is bundling less critical with HTTP/2?", "gzip vs Brotli — when each?"
+
+---
+
+## [Module 4 — Strategic Caching](?tab=learn#module-4) ⚙️🎯
+- The **layered cache**: browser memory/disk → Service Worker → CDN → origin
+- **`Cache-Control`** deep dive: `max-age`, `no-cache` vs `no-store`, `private` vs `public`, `immutable`, `stale-while-revalidate`
+- **Validation**: `ETag` / `Last-Modified` → `304`
+- **Content hashing** for `immutable` long-lived assets; the HTML-no-cache + hashed-assets pattern 🎯
+- **Cache invalidation** — the "hard problem"; cache busting strategies
+- Service Worker caching as a layer (strategy recap; mechanics in Module 3)
+
+**Interview focus:** "How do you cache a JS bundle for a year but still ship updates?", "`no-cache` vs `no-store`?", "Explain `stale-while-revalidate`."
+
+---
+
+## [Module 5 — The JavaScript Cost](?tab=learn#module-5) 🎯
+- Why JavaScript is the **most expensive byte**: download → parse → compile → execute
+- **Bundle size** budgets; the cost on low-end mobile (CPU, not just network)
+- **Code splitting** (route- and component-level) and **dynamic `import()`** 🎯
+- **Tree shaking** and side-effect-free modules; `sideEffects: false`
+- Shipping **modern** code (smaller) + differential serving; minification
+- Auditing: bundle analyzers, finding the heavy dependency, the duplicate-dependency trap
+
+**Interview focus:** "Why is JS more expensive than an equivalent image?", "How does code splitting help, and where do you split?", "What is tree shaking and when does it fail?"
+
+---
+
+## [Module 6 — Images & Media](?tab=learn#module-6) 🎯
+- Images are usually the **biggest bytes and the most common LCP element** 🎯
+- Modern formats: **AVIF** / **WebP** vs JPEG/PNG; when each
+- **Responsive images**: `srcset` + `sizes`, `<picture>` for art direction/format
+- Sizing to prevent **CLS**: `width`/`height` attributes, `aspect-ratio`
+- `loading="lazy"` (and why NOT to lazy-load the LCP image), `decoding="async"`
+- Video: poster frames, `preload`, streaming, replacing GIFs with video
+
+**Interview focus:** "How do you optimize the LCP image?", "`srcset` vs `<picture>` — when each?", "How do images cause CLS and how do you fix it?"
+
+---
+
+## [Module 7 — Font Performance](?tab=learn#module-7)
+- The web-font loading problem: invisible or shifting text while fonts load
+- **`font-display`**: `block` (FOIT) vs `swap` (FOUT) vs `optional` (best for CLS) 🎯
+- **Preloading** fonts; self-hosting vs third-party; `woff2`
+- **Subsetting** and `unicode-range`; only ship the glyphs you use
+- **System font stacks** and `size-adjust`/metric overrides to cut font-swap CLS
+- Variable fonts: one file, many weights
+
+**Interview focus:** "How do you stop a web font from blocking or shifting text?", "`font-display: swap` vs `optional`?", "How do you eliminate font-driven CLS?"
+
+---
+
+## [Module 8 — Rendering & Delivery Strategies](?tab=learn#module-8) 🎯🧠
+- **CSR vs SSR vs SSG vs ISR**: what each optimizes and its TTFB/TTI trade-offs 🎯
+- **Hydration** and its cost; why a "fast" SSR page can still be unresponsive
+- **Streaming SSR** and progressive rendering; Suspense boundaries (conceptual)
+- **Islands** / partial & progressive hydration; **React Server Components** (conceptual)
+- Choosing a strategy by content type (static marketing vs dynamic dashboard)
+- The edge: rendering closer to the user
+
+**Interview focus:** "CSR vs SSR vs SSG — pick one for a given product and justify it.", "What is hydration and why can it hurt INP?", "What problem do islands / RSC solve?"
+
+---
+
+## [Module 9 — Runtime & Interaction Performance](?tab=learn#module-9) 🎯
+- **Long tasks** (>50ms) — the root of poor responsiveness; finding them
+- **INP optimization in depth**: shrink event handlers, defer non-urgent work, avoid forced reflow in handlers 🎯
+- **Scheduling**: `scheduler.yield()`, `scheduler.postTask()` priorities, `isInputPending`, `requestIdleCallback`
+- **List virtualization / windowing** for large lists; pagination
+- DOM size and its cost on style/layout
+- Memory pressure and its effect on a long-lived SPA (ties to Module 2 of the JS path)
+
+**Interview focus:** "A button feels laggy on click — how do you fix it?", "How do you keep a long task from blocking input?", "Why virtualize a long list?"
+
+---
+
+## [Module 10 — Field Measurement (RUM)](?tab=learn#module-10) ⚙️🎯
+- Why **field data** (real users, real devices/networks) is the source of truth 🎯
+- The **`web-vitals`** library: collecting LCP/CLS/INP from real sessions
+- **Attribution**: not just the score, but *which* element/script caused it
+- The **Performance APIs**: Navigation, Resource, Paint, Event, Long Tasks Timing via `PerformanceObserver`
+- **CrUX** (Chrome UX Report) and how Search uses field vitals
+- Sending beacons (`navigator.sendBeacon`) without hurting performance
+
+**Interview focus:** "How do you measure Core Web Vitals for real users?", "Field vs lab data — why do they differ?", "What does `web-vitals` attribution give you?"
+
+---
+
+## [Module 11 — Performance Budgets & CI](?tab=learn#module-11) 🎯🧠
+- **Performance budgets**: size budgets (bundle KB) and metric budgets (LCP/INP)
+- **Lighthouse CI**: gating pull requests on performance regressions 🎯
+- **Bundle analysis** in CI; catching a heavy/duplicate dependency before merge
+- Treating performance as a **product requirement**, not a one-off cleanup
+- Monitoring & alerting on field regressions; dashboards
+- Building a culture: ownership, regression reviews, the ratchet
+
+**Interview focus:** "How do you stop performance from regressing over time?", "What goes in a performance budget?", "How would you set up perf checks in CI?"
+
+---
+
+## High-Yield Interview Question Bank (by theme) 🎯
+
+**Methodology / mental model**
+- The measure-first investigation: from "it's slow" to a shipped fix
+- Lab vs field (RUM); why p75; perceived vs actual performance
+- Where each Core Web Vital comes from and the levers that move it
+
+**Diagnose & fix (the big three)**
+- LCP at 5s — find the cause (TTFB / render-blocking / late image) and fix it
+- Eliminate CLS (un-sized media, fonts, injected content)
+- Improve INP (long tasks, heavy handlers, yielding)
+
+**Loading & network**
+- Read a request waterfall; cut the critical path
+- HTTP/1.1 vs HTTP/2 vs HTTP/3; why bundling advice changed
+- Cache a hashed bundle for a year while still shipping updates (`immutable` + content hash)
+
+**Assets & delivery**
+- Optimize the LCP image (format, responsive, preload, no lazy-load)
+- Stop a web font from blocking/shifting text (`font-display`, preload, subset)
+- Code-split and tree-shake a heavy bundle; ship modern code
+- CSR vs SSR vs SSG vs ISR for a given product; hydration's cost
+
+**Measure & enforce**
+- Collect field vitals with `web-vitals` + `PerformanceObserver`
+- Set a performance budget and gate it in CI (Lighthouse CI)

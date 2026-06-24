@@ -1,0 +1,191 @@
+# React Internals & Concurrent Rendering — Architect Level
+
+A reconciler-up syllabus for engineers who must reason about *what React actually does* between `setState` and a DOM mutation — Fiber, the render/commit split, how hooks are stored, and how concurrent rendering interrupts and prioritizes work — and who need to debug re-renders, tearing, and Suspense from first principles, then defend those decisions in senior/staff/architect interviews. React is treated here as what it really is: a **reconciler plus a cooperative scheduler**, not a black box that "re-renders on state change".
+
+**Legend:** 🎯 = high-frequency interview hotspot · ⚙️ = React-internals depth · 🧠 = mental-model / architecture depth
+
+**Prerequisites:** Comfortable building with React (components, hooks, JSX, props/state). Strong JavaScript fundamentals (closures, the event loop — Module 1 of this path) and a feel for the browser rendering pipeline (Module 3) help a lot. Targets React 18/19.
+
+**Outcome:** Ability to explain React's pipeline from JSX to committed DOM (elements → reconciliation → Fiber → commit), describe how hooks are stored and why their rules exist, reason about state batching and re-render behavior, explain concurrent rendering, the scheduler, and lanes, use transitions/`useDeferredValue`/Suspense deliberately, control re-renders with the right tool, and describe the Server Components model — at an architect's level.
+
+---
+
+## [Module 0 — The React Mental Model](?tab=learn#module-0) 🧠🎯
+- **UI as a function of state**: `UI = f(state)` — declarative, not imperative DOM mutation
+- The component model: components are functions returning a *description* of UI
+- The three-step loop: **render** (call components) → **reconcile** (diff) → **commit** (mutate DOM)
+- Why React exists: keeping the DOM in sync with state, fast, without you writing the updates
+- "Re-render" ≠ "DOM update": rendering produces a description; committing touches the DOM 🎯
+
+**Interview focus:** "What does `UI = f(state)` mean?", "What actually happens when state changes?", "Does a re-render always touch the DOM?"
+
+---
+
+## [Module 1 — JSX, Elements & Components](?tab=learn#module-1) ⚙️
+- **JSX → `React.createElement` → element objects** (plain objects describing what to render) 🎯
+- The new JSX transform (`jsx` runtime) vs the classic transform
+- **Element vs Component vs Instance** — the three things people conflate 🎯
+- `props.children` as just another prop; composition
+- Why returning a new element tree every render is cheap (objects, not DOM)
+
+**Interview focus:** "What does JSX compile to?", "Difference between a React element and a component?", "Why is creating elements on every render cheap?"
+
+---
+
+## [Module 2 — Reconciliation & the Virtual DOM](?tab=learn#module-2) 🎯🧠
+- The **virtual DOM**: a description tree React diffs against the previous one
+- The **reconciliation heuristics**: same type → update in place; different type → unmount + remount 🎯
+- **Keys**: stable identity for list items; why index-as-key bites you 🎯
+- The O(n) diffing trade-off (vs the theoretical O(n³)) and its assumptions
+- What "the virtual DOM is fast" really means (and doesn't)
+
+**Interview focus:** "How does React's diffing algorithm work?", "Why do lists need keys, and why not the index?", "Is the virtual DOM faster than direct DOM? Explain."
+
+---
+
+## [Module 3 — Fiber Architecture](?tab=learn#module-3) ⚙️🧠
+- The **Fiber node**: a unit of work + a record of a component instance (type, props, state, pointers)
+- The **fiber tree** and its `child` / `sibling` / `return` links
+- **Double buffering**: `current` tree vs `workInProgress` tree 🎯
+- Why **Fiber replaced the stack reconciler**: to make rendering interruptible
+- Work loop: processing one fiber at a time so React can pause/resume 🧠
+
+**Interview focus:** "What is a Fiber?", "Why did React rewrite the reconciler as Fiber?", "What is the current vs work-in-progress tree?"
+
+---
+
+## [Module 4 — Render & Commit Phases](?tab=learn#module-4) ⚙️🎯
+- **Render phase**: build the `workInProgress` tree by calling components — **interruptible, must be pure, no side effects** 🎯
+- **Commit phase**: apply changes to the real DOM — **synchronous, not interruptible**
+- The three commit sub-phases: before-mutation, mutation, layout
+- Why render must be pure (it can be paused, restarted, or thrown away) 🎯
+- Where effects fire relative to commit
+
+**Interview focus:** "Render vs commit phase?", "Why must render be a pure function?", "Why is the commit phase synchronous?"
+
+---
+
+## [Module 5 — Hooks Internals](?tab=learn#module-5) ⚙️🎯
+- Hooks are stored as a **linked list on the fiber**, in call order 🎯
+- The **Rules of Hooks** explained from the implementation (why no conditionals/loops) 🎯
+- The hook **dispatcher** (mount vs update dispatchers)
+- `useState` / `useReducer` under the hood: the update queue and the dispatch function
+- `useRef` as a stable mutable box; why it doesn't trigger re-renders
+
+**Interview focus:** "How does React know which `useState` is which?", "Why can't hooks be called conditionally?", "Implement a tiny `useState`."
+
+---
+
+## [Module 6 — State, Updates & Batching](?tab=learn#module-6) 🎯
+- State is a **snapshot**: each render closes over its own state value 🎯
+- **Batching**: multiple `setState` calls in one event → one re-render
+- **Automatic batching** in React 18 (also across promises/timeouts/native events) 🎯
+- Updater functions (`setX(x => x + 1)`) vs value updates — when each matters
+- **Bailouts**: same value (`Object.is`) → React can skip the re-render
+
+**Interview focus:** "Why does `setCount(count+1)` thrice only add 1?", "What changed about batching in React 18?", "When does an updater function matter?"
+
+---
+
+## [Module 7 — Effects & Their Timing](?tab=learn#module-7) ⚙️🎯
+- **`useEffect`** (after paint, async) vs **`useLayoutEffect`** (after DOM mutation, before paint, sync) 🎯
+- The dependency array: identity comparison, the stale-closure trap
+- **Cleanup** timing — before the next effect and on unmount
+- Effects in **commit**: where each kind fires in the phases
+- **StrictMode** double-invoking effects in dev — what it's testing for 🎯
+
+**Interview focus:** "`useEffect` vs `useLayoutEffect` — when each?", "Why does my effect run twice in dev?", "Explain the stale-closure bug and how to fix it."
+
+---
+
+## [Module 8 — Concurrent Rendering](?tab=learn#module-8) 🎯🧠
+- The shift: rendering becomes **interruptible** — React can pause, yield to the browser, and resume 🎯
+- **Time-slicing**: breaking render work into chunks so the main thread stays responsive
+- Why concurrency matters (input/animation stay smooth during a big render)
+- **Concurrent rendering is opt-in** via concurrent features (not "everything is async")
+- **Tearing**: the consistency hazard concurrency introduces, and `useSyncExternalStore` 🧠
+
+**Interview focus:** "What is concurrent rendering and what problem does it solve?", "What is tearing?", "Does React 18 make everything concurrent automatically?"
+
+---
+
+## [Module 9 — The Scheduler & Lanes](?tab=learn#module-9) ⚙️🧠
+- React's **cooperative scheduler**: yielding to the browser with priorities (the `scheduler` package)
+- Why React doesn't just use `requestIdleCallback` (it ships its own scheduler) 🧠
+- The **lanes** model: a bitmask of priorities for pending updates 🎯
+- How an update's lane is chosen (urgent input vs transition vs idle)
+- How React picks which lanes to render next, and starvation avoidance
+
+**Interview focus:** "How does React prioritize updates?", "What are lanes?", "Why does React have its own scheduler instead of `requestIdleCallback`?"
+
+---
+
+## [Module 10 — Concurrent Features: Transitions & Deferred Values](?tab=learn#module-10) 🎯
+- **`startTransition` / `useTransition`**: mark an update as **non-urgent** so urgent ones (typing) stay snappy 🎯
+- `isPending` for showing a subtle loading state
+- **`useDeferredValue`**: render an expensive view from a lagging copy of a value 🎯
+- Transition vs debounce — what each actually does (and why transitions are interruptible)
+- Where these map onto lanes (low-priority work)
+
+**Interview focus:** "What does `startTransition` do?", "`useDeferredValue` vs `useTransition` vs debounce?", "How do transitions keep typing responsive?"
+
+---
+
+## [Module 11 — Suspense & Data Fetching](?tab=learn#module-11) ⚙️🎯
+- **Suspense**: a component can "suspend" by throwing a promise; the nearest boundary shows a fallback 🎯
+- How a boundary catches the suspension, waits, and retries the render
+- **Streaming SSR** with Suspense (`renderToPipeableStream`) and selective hydration
+- The **`use`** hook (React 19): unwrap a promise/context during render
+- Suspense for data: the framework/RSC integration (concept), not ad-hoc throwing
+
+**Interview focus:** "How does Suspense work under the hood?", "What does it mean for a component to 'suspend'?", "How does Suspense enable streaming SSR?"
+
+---
+
+## [Module 12 — Memoization & Re-render Control](?tab=learn#module-12) 🎯
+- When components re-render: parent re-render, state/context change — and the bailout rules 🎯
+- **`React.memo`**: skip re-render if props are shallow-equal (and when it backfires)
+- **`useMemo`** / **`useCallback`**: caching values/identities for referential equality 🎯
+- The context **re-render problem**: every consumer re-renders on value change; splitting/memoizing context
+- The **React Compiler** (React 19): auto-memoization and why manual memo may fade 🧠
+
+**Interview focus:** "When does a component re-render?", "`useMemo` vs `useCallback` — when does each help?", "Why does context cause extra re-renders and how do you fix it?"
+
+---
+
+## [Module 13 — Server Components & React 19](?tab=learn#module-13) 🧠🎯
+- **React Server Components (RSC)**: components that render only on the server, ship **zero client JS** 🎯
+- The **server/client boundary** (`'use client'`) and what crosses it (serializable props)
+- Streaming the RSC payload; how it composes with client components and Suspense
+- **Server Actions** (`'use server'`) and form actions; `useActionState`, `useOptimistic`
+- The **`use`** hook, `ref` as a prop, and other React 19 shifts
+- Where this leaves the classic "SPA" mental model 🧠
+
+**Interview focus:** "What problem do Server Components solve?", "What can cross the server/client boundary?", "RSC vs SSR — how are they different?"
+
+---
+
+## High-Yield Interview Question Bank (by theme) 🎯
+
+**Mental model / explain it**
+- `UI = f(state)`; render vs reconcile vs commit; re-render ≠ DOM update
+- JSX → elements; element vs component vs instance
+- Reconciliation heuristics; keys and why not index
+- Fiber, the work-in-progress tree, and why rendering is interruptible
+
+**Internals deep-dive**
+- How hooks are stored (linked list) and why the Rules of Hooks exist
+- Render-phase purity and the render/commit split
+- State as a snapshot; batching and automatic batching (React 18)
+- `useEffect` vs `useLayoutEffect`; StrictMode double-invocation
+
+**Concurrency**
+- What concurrent rendering solves; time-slicing; tearing + `useSyncExternalStore`
+- Lanes and the scheduler; how priority is chosen
+- `startTransition`, `useTransition`, `useDeferredValue` (vs debounce)
+- Suspense: suspending, boundaries, streaming SSR
+
+**Performance & architecture**
+- When components re-render; `React.memo` / `useMemo` / `useCallback`; the context re-render problem
+- The React Compiler and the future of manual memoization
+- Server Components, the `'use client'` boundary, Server Actions; RSC vs SSR
