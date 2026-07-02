@@ -155,7 +155,7 @@ export function NotesDrawer() {
         role="dialog"
         aria-modal="true"
         aria-label="Section notes"
-        className={`fixed right-0 top-0 z-50 flex h-full w-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-out dark:bg-neutral-900 sm:w-[460px] sm:border-l sm:border-neutral-200 dark:sm:border-neutral-800 ${
+        className={`fixed right-0 top-0 z-50 flex h-full w-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-out dark:bg-neutral-900 sm:w-[920px] sm:max-w-[95vw] sm:border-l sm:border-neutral-200 dark:sm:border-neutral-800 ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
